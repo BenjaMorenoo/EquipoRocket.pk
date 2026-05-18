@@ -1,180 +1,142 @@
 // src/components/Navbar.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const NAV_LINKS = [
-  { id: 'teams',   label: 'Mis Equipos',  icon: '⚔️' },
-  { id: 'builder', label: 'Constructor',  icon: '🔧' },
-  { id: 'dex',     label: 'Pokédex',      icon: '📖' },
-  { id: 'ranking', label: 'Rankings',     icon: '🏆' },
+  { id: 'teams',   label: 'Mis Equipos', icon: '⚔️' },
+  { id: 'builder', label: 'Constructor', icon: '🔧' },
+  { id: 'dex',     label: 'Pokédex',     icon: '📖' },
+  { id: 'ranking', label: 'Rankings',    icon: '🏆' },
 ];
 
-export default function Navbar({ currentPage, onNavigate }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+function NavBtn({ link, active, onNavigate }) {
+  return (
+    <button
+      onClick={() => onNavigate(link.id)}
+      style={{
+        background: active ? 'rgba(220,38,38,0.12)' : 'none',
+        border: active ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
+        borderRadius: '8px', color: active ? 'var(--color-pk-red-light)' : 'var(--color-pk-subtle)',
+        cursor: 'pointer', padding: '8px 14px', fontFamily: 'var(--font-heading)',
+        fontWeight: 600, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase',
+        transition: 'all .15s ease', display: 'flex', alignItems: 'center', gap: '5px',
+      }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.color='var(--color-pk-text)'; e.currentTarget.style.background='rgba(255,255,255,0.04)'; }}}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.color='var(--color-pk-subtle)'; e.currentTarget.style.background='none'; }}}
+    >
+      <span style={{ fontSize: '12px' }}>{link.icon}</span> {link.label}
+    </button>
+  );
+}
+
+function DropItem({ icon, label, onClick, danger, accent }) {
+  return (
+    <button onClick={onClick} style={{
+      width:'100%', display:'flex', alignItems:'center', gap:'9px',
+      background:'none', border:'none', borderRadius:'8px', padding:'9px 12px',
+      cursor:'pointer', textAlign:'left',
+      color: danger ? '#fca5a5' : accent ?? 'var(--color-pk-subtle)',
+      fontFamily:'var(--font-body)', fontSize:'13px', fontWeight:500, transition:'all .12s ease',
+    }}
+      onMouseEnter={e => { e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = danger ? '#ef4444' : accent ?? 'var(--color-pk-text)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background='none'; e.currentTarget.style.color = danger ? '#fca5a5' : accent ?? 'var(--color-pk-subtle)'; }}
+    >
+      <span style={{ fontSize:'14px' }}>{icon}</span> {label}
+    </button>
+  );
+}
+
+function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const initials = user?.username?.slice(0,2).toUpperCase() ?? 'PK';
+  const isAdmin  = user?.is_admin && !isPreview;
 
   return (
-    <nav style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 40,
-      background: 'rgba(6, 12, 24, 0.85)',
-      backdropFilter: 'blur(16px)',
-      borderBottom: '1px solid var(--color-pk-border)',
-    }}>
-      <div style={{
-        maxWidth: '1440px',
-        margin: '0 auto',
-        padding: '0 24px',
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '24px',
-      }}>
-
-        {/* Logo */}
-        <button
-          onClick={() => onNavigate('teams')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-            flexShrink: 0,
-          }}
-        >
-          {/* Pokeball Icon */}
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: 'conic-gradient(var(--color-pk-red) 0deg 180deg, white 180deg 360deg)',
-            border: '2px solid var(--color-pk-border-light)',
-            position: 'relative',
-            flexShrink: 0,
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: 'var(--color-pk-surface)',
-              border: '2px solid var(--color-pk-border-light)',
-            }} />
-          </div>
-
-          <div style={{ lineHeight: 1 }}>
-            <div style={{
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 700,
-              fontSize: '18px',
-              letterSpacing: '0.08em',
-              color: 'var(--color-pk-text)',
-              textTransform: 'uppercase',
-            }}>
-              Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>
-            </div>
-            <div style={{
-              fontSize: '9px',
-              color: 'var(--color-pk-muted)',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-            }}>
-              Pokemon Champions
-            </div>
-          </div>
-        </button>
-
-        {/* Desktop nav links */}
+    <div ref={ref} style={{ position:'relative' }}>
+      <button onClick={() => setOpen(p => !p)} style={{
+        display:'flex', alignItems:'center', gap:'8px',
+        background: open ? 'var(--color-pk-card)' : 'var(--color-pk-surface)',
+        border:`1px solid ${open ? 'var(--color-pk-border-light)' : 'var(--color-pk-border)'}`,
+        borderRadius:'10px', cursor:'pointer', padding:'5px 10px 5px 5px', transition:'all .15s ease',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor='var(--color-pk-border-light)'; }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.borderColor='var(--color-pk-border)'; }}
+      >
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          flex: 1,
-          justifyContent: 'center',
-        }}
-          className="hidden md:flex"
-        >
-          {NAV_LINKS.map((link) => (
-            <button
-              key={link.id}
-              onClick={() => onNavigate(link.id)}
-              style={{
-                background: currentPage === link.id
-                  ? 'rgba(220, 38, 38, 0.12)'
-                  : 'none',
-                border: currentPage === link.id
-                  ? '1px solid rgba(220, 38, 38, 0.3)'
-                  : '1px solid transparent',
-                borderRadius: '8px',
-                color: currentPage === link.id
-                  ? 'var(--color-pk-red-light)'
-                  : 'var(--color-pk-subtle)',
-                cursor: 'pointer',
-                padding: '8px 16px',
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 600,
-                fontSize: '14px',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                transition: 'all 0.15s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                if (currentPage !== link.id) {
-                  e.currentTarget.style.color = 'var(--color-pk-text)';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (currentPage !== link.id) {
-                  e.currentTarget.style.color = 'var(--color-pk-subtle)';
-                  e.currentTarget.style.background = 'none';
-                }
-              }}
-            >
-              <span style={{ fontSize: '13px' }}>{link.icon}</span>
-              {link.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <button
-            onClick={() => onNavigate('builder')}
-            className="pk-btn pk-btn-primary"
-            style={{ padding: '8px 18px', fontSize: '13px' }}
-          >
-            + Nuevo Equipo
-          </button>
-
-          {/* Avatar placeholder */}
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--color-pk-red), var(--color-pk-blue))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            fontWeight: 700,
-            color: 'white',
-            cursor: 'pointer',
-            border: '2px solid var(--color-pk-border-light)',
-          }}>
-            T
+          width:'30px', height:'30px', borderRadius:'50%', flexShrink:0,
+          background: isAdmin ? 'linear-gradient(135deg,#f59e0b,#dc2626)' : 'linear-gradient(135deg,var(--color-pk-red),var(--color-pk-blue))',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:'11px', fontWeight:700, color:'#fff', fontFamily:'var(--font-heading)',
+          border: isAdmin ? '2px solid rgba(245,158,11,0.5)' : '2px solid var(--color-pk-border-light)',
+        }}>{initials}</div>
+        <div style={{ textAlign:'left', lineHeight:1.2 }}>
+          <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'12px', color:'var(--color-pk-text)', maxWidth:'100px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user?.username}</div>
+          <div style={{ fontSize:'9px', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color: isAdmin ? 'var(--color-pk-yellow)' : isPreview ? 'var(--color-pk-blue)' : 'var(--color-pk-muted)' }}>
+            {isAdmin ? '👑 Admin' : isPreview ? '👁 Vista previa' : '👤 Usuario'}
           </div>
         </div>
-      </div>
-    </nav>
+        <span style={{ fontSize:'10px', color:'var(--color-pk-muted)', transition:'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
+      </button>
+
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 8px)', right:0,
+          background:'var(--color-pk-card)', border:'1px solid var(--color-pk-border-light)',
+          borderRadius:'12px', padding:'6px', minWidth:'180px', zIndex:50,
+          boxShadow:'0 8px 32px rgba(0,0,0,0.4)', animation:'dropDown .15s ease',
+        }}>
+          <DropItem icon="👤" label="Mi Perfil" onClick={() => { onNavigate('profile'); setOpen(false); }} />
+          {user?.is_admin && !isPreview && (
+            <DropItem icon="⚙️" label="Panel Admin" onClick={() => { onNavigate('admin'); setOpen(false); }} accent="var(--color-pk-yellow)" />
+          )}
+          <div style={{ margin:'5px 6px', borderTop:'1px solid var(--color-pk-border)' }} />
+          <DropItem icon="🚪" label="Cerrar sesión" onClick={() => { onLogout(); setOpen(false); }} danger />
+        </div>
+      )}
+      <style>{`@keyframes dropDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }`}</style>
+    </div>
+  );
+}
+
+export default function Navbar({ currentPage, onNavigate, user, onLogout, isPreview=false, onExitPreview }) {
+  return (
+    <>
+      {isPreview && (
+        <div style={{ background:'rgba(59,130,246,0.1)', borderBottom:'1px solid rgba(59,130,246,0.25)', padding:'7px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:'12px' }}>
+          <span style={{ fontSize:'12px', color:'var(--color-pk-blue)', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.05em' }}>
+            👁 MODO VISTA PREVIA — Estás viendo la app como usuario normal
+          </span>
+          <button onClick={onExitPreview} style={{ background:'rgba(59,130,246,0.2)', border:'1px solid rgba(59,130,246,0.4)', borderRadius:'6px', color:'var(--color-pk-blue)', cursor:'pointer', padding:'3px 12px', fontSize:'11px', fontFamily:'var(--font-heading)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            Salir ✕
+          </button>
+        </div>
+      )}
+      <nav style={{ position:'sticky', top:0, zIndex:40, background:'rgba(6,12,24,0.88)', backdropFilter:'blur(16px)', borderBottom:`1px solid ${isPreview ? 'rgba(59,130,246,0.2)' : 'var(--color-pk-border)'}` }}>
+        <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 24px', height:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'20px' }}>
+          <button onClick={() => onNavigate('teams')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+            <div style={{ width:'34px', height:'34px', borderRadius:'50%', background:'conic-gradient(var(--color-pk-red) 0deg 180deg,#e0e0e0 180deg 360deg)', border:'2px solid var(--color-pk-border-light)', position:'relative', flexShrink:0 }}>
+              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'9px', height:'9px', borderRadius:'50%', background:'var(--color-pk-surface)', border:'2px solid var(--color-pk-border-light)' }} />
+            </div>
+            <div style={{ lineHeight:1 }}>
+              <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'17px', letterSpacing:'0.08em', color:'var(--color-pk-text)', textTransform:'uppercase' }}>Equipo<span style={{ color:'var(--color-pk-red)' }}>Rocket</span></div>
+              <div style={{ fontSize:'8px', color:'var(--color-pk-muted)', letterSpacing:'0.2em', textTransform:'uppercase' }}>Pokémon Champions</div>
+            </div>
+          </button>
+          <div style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center' }}>
+            {NAV_LINKS.map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id} onNavigate={onNavigate} />)}
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
+            <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px' }}>+ Nuevo Equipo</button>
+            <ProfileDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isPreview={isPreview} />
+          </div>
+        </div>
+      </nav>
+    </>
   );
 }
