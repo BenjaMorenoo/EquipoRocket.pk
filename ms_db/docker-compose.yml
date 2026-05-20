@@ -30,7 +30,6 @@ services:
       - postgres
     ports:
       - "4002:4002"
-    command: bash -c 'until bash -c "cat < /dev/tcp/postgres/5432 >/dev/null 2>&1"; do echo "Waiting for Postgres..."; sleep 1; done; npm run init-db || true; npm start'
     networks:
       - equiporocket-net
 
