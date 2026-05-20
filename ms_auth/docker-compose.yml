@@ -1,0 +1,19 @@
+services:
+  ms_auth:
+    build: .
+    container_name: ms_auth
+    env_file: .env
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: equiporocketDb
+      DB_USER: postgres
+    networks:
+      - equiporocket-net
+
+networks:
+  equiporocket-net:
+    external: true
