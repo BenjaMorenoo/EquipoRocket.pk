@@ -104,7 +104,7 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
   );
 }
 
-export default function Navbar({ currentPage, onNavigate, user, onLogout, isPreview=false, onExitPreview }) {
+export default function Navbar({ currentPage, onNavigate, user, onLogout, isPreview=false, onExitPreview, onLoginClick }) {
   return (
     <>
       {isPreview && (
@@ -133,10 +133,19 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
             <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px' }}>+ Nuevo Equipo</button>
-            <ProfileDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isPreview={isPreview} />
+            {user
+              ? <ProfileDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isPreview={isPreview} />
+              : <div style={{ display:'flex', gap:'8px' }}>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px' }}>⚡ Iniciar Sesión</button>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-primary"   style={{ padding:'7px 14px', fontSize:'12px' }}>✨ Registrarse</button>
+                </div>
+            }
           </div>
         </div>
       </nav>
     </>
   );
 }
+
+// Note: Navbar already exported above. The guest buttons are handled via
+// the onLoginClick prop when user is null — see App.jsx usage.

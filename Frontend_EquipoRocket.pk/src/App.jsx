@@ -1,12 +1,13 @@
 // src/App.jsx
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import AuthPage from './pages/AuthPage';
-import Navbar from './components/Navbar';
-import TeamBuilder from './pages/TeamBuilder';
-import MyTeams from './pages/MyTeams';
-import UserProfile from './pages/UserProfile';
-import AdminPanel from './pages/AdminPanel';
+import AuthPage     from './pages/AuthPage';
+import Navbar       from './components/Navbar';
+import Home         from './pages/Home';
+import TeamBuilder  from './pages/TeamBuilder';
+import MyTeams      from './pages/MyTeams';
+import UserProfile  from './pages/UserProfile';
+import AdminPanel   from './pages/AdminPanel';
 
 function PlaceholderPage({ title, icon, description }) {
   return (
@@ -21,21 +22,32 @@ function PlaceholderPage({ title, icon, description }) {
   );
 }
 
-function AppContent() {
-  const { user, logout } = useAuth();
-  const [currentPage,  setCurrentPage]  = useState('teams');
+function AppShell() {
+  const { user, logout, loading } = useAuth();
+  const [currentPage,  setCurrentPage]  = useState('home');
   const [editingTeam,  setEditingTeam]  = useState(null);
-  const [previewMode,  setPreviewMode]  = useState(false); // admin viewing as user
+  const [previewMode,  setPreviewMode]  = useState(false);
+  const [showAuth,     setShowAuth]     = useState(false); // modal de login/register
 
-  const handleNavigate = (page) => {
-    // Non-admins (or admins in preview mode) cannot access admin panel
+  if (loading) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--color-pk-border)', borderTopColor:'var(--color-pk-red)', animation:'spin .8s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  // Si showAuth está activo, mostrar página de auth
+  if (showAuth) return (
+    <AuthPage onSuccess={() => setShowAuth(false)} onBack={() => setShowAuth(false)} />
+  );
+
+  const navigate = (page) => {
+    if (page === 'auth')  { setShowAuth(true); return; }
     if (page === 'admin' && (!user?.is_admin || previewMode)) return;
+    if (page === 'profile' && !user) { setShowAuth(true); return; }
+    if (page === 'teams'   && !user) { setShowAuth(true); return; }
     setCurrentPage(page);
     if (page !== 'builder') setEditingTeam(null);
-  };
-
-  const handleNavigateToBuilder = (team = null) => {
-    setEditingTeam(team); setCurrentPage('builder');
   };
 
   const handleSaveTeam = async (teamData) => {
@@ -44,34 +56,26 @@ function AppContent() {
     setCurrentPage('teams');
   };
 
-  const handlePreviewAsUser = () => {
-    setPreviewMode(true);
-    // If they were on admin panel, redirect to teams
-    if (currentPage === 'admin') setCurrentPage('teams');
-  };
-
-  const handleExitPreview = () => {
-    setPreviewMode(false);
-    setCurrentPage('admin'); // return to admin panel
-  };
+  const handlePreviewAsUser = () => { setPreviewMode(true); if (currentPage === 'admin') setCurrentPage('home'); };
+  const handleExitPreview   = () => { setPreviewMode(false); setCurrentPage('admin'); };
 
   return (
     <div style={{ minHeight:'100vh' }} className="bg-grid">
       <Navbar
         currentPage={currentPage}
-        onNavigate={handleNavigate}
+        onNavigate={navigate}
         user={user}
         onLogout={logout}
         isPreview={previewMode}
         onExitPreview={handleExitPreview}
+        onLoginClick={() => setShowAuth(true)}
       />
       <main style={{ position:'relative', zIndex:1 }}>
-        {currentPage === 'teams'   && <MyTeams    onNavigateToBuilder={handleNavigateToBuilder} />}
-        {currentPage === 'builder' && <TeamBuilder initialTeam={editingTeam} onSave={handleSaveTeam} />}
-        {currentPage === 'profile' && <UserProfile onNavigate={handleNavigate} />}
-        {currentPage === 'admin'   && user?.is_admin && !previewMode && (
-          <AdminPanel onPreviewAsUser={handlePreviewAsUser} />
-        )}
+        {currentPage === 'home'    && <Home         onNavigate={navigate} />}
+        {currentPage === 'teams'   && user && <MyTeams    onNavigateToBuilder={(t) => { setEditingTeam(t); setCurrentPage('builder'); }} />}
+        {currentPage === 'builder' && <TeamBuilder  initialTeam={editingTeam} onSave={handleSaveTeam} onNavigate={navigate} />}
+        {currentPage === 'profile' && user && <UserProfile onNavigate={navigate} />}
+        {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} />}
         {currentPage === 'dex'     && <PlaceholderPage title="Pokédex"  icon="📖" description="Explora todos los Pokémon disponibles en Pokémon Champions." />}
         {currentPage === 'ranking' && <PlaceholderPage title="Rankings" icon="🏆" description="Los equipos más usados en la meta competitiva." />}
       </main>
@@ -79,21 +83,10 @@ function AppContent() {
   );
 }
 
-function AuthGate() {
-  const { user, loading } = useAuth();
-  if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'16px' }}>
-      <div style={{ width:'44px', height:'44px', borderRadius:'50%', border:'3px solid var(--color-pk-border)', borderTopColor:'var(--color-pk-red)', animation:'spin .8s linear infinite' }} />
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
-  );
-  return user ? <AppContent /> : <AuthPage />;
-}
-
 export default function App() {
   return (
     <AuthProvider>
-      <AuthGate />
+      <AppShell />
     </AuthProvider>
   );
 }
