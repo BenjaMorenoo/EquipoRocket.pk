@@ -2,8 +2,17 @@
 import { getTypeColor } from '../utils/typeColors';
 
 export default function TypeBadge({ type, size = 'sm' }) {
-  const colors = getTypeColor(type);
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  if (!type) return null;
+  // support either a string like 'fire' or an object { type: { name: 'fire' } } or { name: 'fire' }
+  let name = '';
+  if (typeof type === 'string') name = type;
+  else if (type?.type?.name) name = type.type.name;
+  else if (type?.name) name = type.name;
+  else name = String(type || '');
+  if (!name) return null;
+
+  const colors = getTypeColor(name.toLowerCase());
+  const label = name.charAt(0).toUpperCase() + name.slice(1);
 
   const sizes = {
     xs:  { fontSize: '9px',  padding: '2px 7px',  borderRadius: '5px' },

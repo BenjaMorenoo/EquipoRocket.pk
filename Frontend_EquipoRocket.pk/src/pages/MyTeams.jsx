@@ -35,23 +35,44 @@ const MOCK_TEAMS = [
 
 function TeamCard({ team, onEdit, onDelete }) {
   const [sprites, setSprites] = useState({});
-
   useEffect(() => {
-    // Load sprites from PokéAPI
+    // Clear previous sprites when team changes
+    setSprites({});
+
+    // helper: return lookup value for API and normalized key for map
+    const getLookup = (pk) => {
+      if (!pk) return null;
+      const name = pk?.name ?? pk?.pokemon?.name ?? null;
+      const id = pk?.id ?? pk?.pokemon_id ?? pk?.pokemon?.id ?? null;
+      const lookup = name ?? id;
+      if (!lookup) return null;
+      const key = String(lookup).toLowerCase();
+      return { lookup, key };
+    };
+
     team.pokemon.forEach(async (pk) => {
       try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pk.id}`);
+        const info = getLookup(pk);
+        if (!info) return;
+        const { lookup, key } = info;
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(lookup)}`);
+        if (!res.ok) return;
         const data = await res.json();
-        const sprite = data.sprites?.front_default;
+        const sprite = data.sprites?.other?.['official-artwork']?.front_default || data.sprites?.front_default || null;
         if (sprite) {
-          setSprites((prev) => ({ ...prev, [pk.id]: sprite }));
+          setSprites((prev) => ({ ...prev, [key]: sprite }));
         }
-      } catch { /* ignore */ }
+      } catch (err) { /* ignore individual failures */ }
     });
   }, [team]);
 
-  // Collect all unique types
-  const allTypes = [...new Set(team.pokemon.flatMap((p) => p.types))];
+  // Collect all unique types (tolerate missing shapes)
+  const allTypes = [...new Set(
+    team.pokemon.flatMap((p) => (p?.types || [])
+      .map((t) => (typeof t === 'string' ? t : (t?.type?.name || t?.name || '')))
+      .filter(Boolean)
+    )
+  )];
 
   return (
     <div
@@ -135,6 +156,8 @@ function TeamCard({ team, onEdit, onDelete }) {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         {Array(6).fill(null).map((_, i) => {
           const pk = team.pokemon[i];
+          const idKey = pk ? String((pk?.name ?? pk?.pokemon?.name ?? pk?.id ?? pk?.pokemon_id ?? pk?.pokemon?.id) || '').toLowerCase() : null;
+          const spriteUrl = idKey ? sprites[idKey] : null;
           return (
             <div
               key={i}
@@ -150,14 +173,16 @@ function TeamCard({ team, onEdit, onDelete }) {
                 opacity: pk ? 1 : 0.3,
               }}
             >
-              {pk && sprites[pk.id] ? (
-                <img
-                  src={sprites[pk.id]}
-                  alt={pk.name}
-                  style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-                />
-              ) : pk ? (
-                <span style={{ fontSize: '18px' }}>❓</span>
+              {pk ? (
+                spriteUrl ? (
+                  <img
+                    src={spriteUrl}
+                    alt={pk.name}
+                    style={{ width: '44px', height: '44px', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '18px' }}>❓</span>
+                )
               ) : (
                 <span style={{ fontSize: '14px', color: 'var(--color-pk-muted)' }}>—</span>
               )}

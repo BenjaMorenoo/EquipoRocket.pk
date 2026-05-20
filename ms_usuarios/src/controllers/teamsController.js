@@ -4,7 +4,13 @@ import { query } from '../config/db.js';
 export const listTeams = async (req, res) => {
   try {
     const userId = req.user.id;
-    const teams = await TeamRepo.findByUser(userId);
+    // get base teams then enrich with pokemon list for each team
+    const baseTeams = await TeamRepo.findByUser(userId);
+    const teams = [];
+    for (const t of baseTeams) {
+      const full = await TeamRepo.findById(t.id);
+      if (full) teams.push(full);
+    }
     return res.json({ success:true, data: { teams } });
   } catch (e) {
     console.error('[ms_usuarios] listTeams', e.message);

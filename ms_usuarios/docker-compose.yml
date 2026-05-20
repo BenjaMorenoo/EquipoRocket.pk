@@ -5,11 +5,11 @@ services:
     container_name: ms_usuarios
     env_file: .env
     environment:
-      - DB_HOST=ms_db
+      - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=equiporocketDb
       - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_PASSWORD=example
       - PORT=3003
       - JWT_SECRET=dev_jwt_secret
     ports:
