@@ -97,3 +97,20 @@ export const getCurrentUser = async () => {
   const { data } = await backendAPI.get('/auth/me');
   return data;
 };
+
+// ── ms_pokemon endpoints (DB-backed Pokédex)
+const msPokemonAPI = axios.create({
+  baseURL: import.meta.env.VITE_MS_POKEMON_URL || 'http://localhost:3002/api',
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+export const getBackendPokemons = async (limit = 200, offset = 0) => {
+  const { data } = await msPokemonAPI.get(`/pokemon?limit=${limit}&offset=${offset}`);
+  return data;
+};
+
+export const getBackendPokemon = async (name) => {
+  const { data } = await msPokemonAPI.get(`/pokemon/${encodeURIComponent(name)}`);
+  return data;
+};

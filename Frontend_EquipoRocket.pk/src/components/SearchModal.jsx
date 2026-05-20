@@ -1,6 +1,6 @@
 // src/components/SearchModal.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getPokemonList, getPokemon } from '../services/api';
+import { getPokemon, getBackendPokemons, getBackendPokemon } from '../services/api';
 import TypeBadge from './TypeBadge';
 
 const ITEMS_PER_PAGE = 40;
@@ -15,8 +15,40 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
     if (data || loading) return;
     setLoading(true);
     try {
-      const d = await getPokemon(entry.name);
-      setData(d);
+      // First, fetch structured data from our DB service
+      let db = null;
+      try {
+        const res = await getBackendPokemon(entry.name);
+        db = res?.data?.pokemon || null;
+      } catch (e) {
+        db = null;
+      }
+
+      // Build minimal data object using DB results
+      let built = db ? {
+        id: db.id,
+        name: db.name,
+        stats: db.stats || [],
+        types: db.types || [],
+        abilities: db.abilities || [],
+        sprites: null,
+      } : null;
+
+      // Fetch sprites from PokeAPI only (if available)
+      try {
+        const poke = await getPokemon(entry.name);
+        const spriteUrl = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
+        if (spriteUrl) {
+          if (!built) {
+            built = { id: poke.id, name: poke.name, stats: poke.stats || [], types: poke.types || [], abilities: [], sprites: null };
+          }
+          built.sprites = { front_default: spriteUrl, other: { 'official-artwork': { front_default: spriteUrl } } };
+        }
+      } catch (e) {
+        // ignore sprite fetch failures
+      }
+
+      if (built) setData(built);
     } catch {
       // ignore
     } finally {
@@ -25,7 +57,7 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
   }, [entry.name, data, loading]);
 
   const sprite = data?.sprites?.front_default;
-  const id     = data ? String(data.id).padStart(3, '0') : '???';
+  const id     = data ? String(data.id).padStart(3, '0') : (entry.id ? String(entry.id).padStart(3, '0') : '???');
 
   return (
     <button
@@ -133,16 +165,20 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
   const inputRef   = useRef(null);
   const selectedIds = new Set(selectedPokemon.map((p) => p?.name));
 
-  /* Load full list once */
+  /* Load full list once from ms_pokemon (DB) */
   useEffect(() => {
     (async () => {
       setLoadingAll(true);
       try {
-        const list = await getPokemonList(400, 0);
+        const res = await getBackendPokemons(1000, 0);
+        // res.data.pokemons expected
+        const list = (res?.data?.pokemons || []).map(p => ({ name: p.name, id: p.id }));
         setAllList(list);
         setFiltered(list);
-      } catch {
+      } catch (e) {
+        console.warn('Failed to load backend pokemons', e.message);
         setAllList([]);
+        setFiltered([]);
       } finally {
         setLoadingAll(false);
       }
@@ -168,6 +204,24 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
     if (!q) return;
     setDirectLoad(true);
     try {
+      // Prefer DB lookup
+      try {
+        const res = await getBackendPokemon(q);
+        const db = res?.data?.pokemon || null;
+        if (db) {
+          // fetch sprite
+          try {
+            const poke = await getPokemon(q);
+            const spriteUrl = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
+            db.sprites = spriteUrl ? { front_default: spriteUrl, other: { 'official-artwork': { front_default: spriteUrl } } } : null;
+          } catch {}
+          setDirectPk(db);
+          return;
+        }
+      } catch (e) {
+        // fallback to pokeapi
+      }
+
       const pk = await getPokemon(q);
       setDirectPk(pk);
     } catch {
@@ -304,24 +358,23 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
             </div>
           ) : (
             <>
-              {paged.map((entry) => (
-                <PokemonListItem
-                  key={entry.name}
-                  entry={entry}
-                  onSelect={async (pkData) => {
-                    // If data wasn't loaded yet, fetch it now
-                    if (!pkData) {
-                      try {
-                        const d = await getPokemon(entry.name);
-                        onSelect(d);
-                      } catch { /* ignore */ }
-                    } else {
-                      onSelect(pkData);
-                    }
-                  }}
-                  isSelected={selectedIds.has(entry.name)}
-                />
-              ))}
+                  {paged.map((entry) => (
+                    <PokemonListItem
+                      key={entry.name}
+                      entry={entry}
+                      onSelect={async (pkData) => {
+                        if (!pkData) {
+                          try {
+                            const d = await getPokemon(entry.name);
+                            onSelect(d);
+                          } catch { /* ignore */ }
+                        } else {
+                          onSelect(pkData);
+                        }
+                      }}
+                      isSelected={selectedIds.has(entry.name)}
+                    />
+                  ))}
 
               {hasMore && (
                 <button
