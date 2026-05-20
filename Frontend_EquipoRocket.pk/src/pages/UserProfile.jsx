@@ -18,8 +18,18 @@ const countryName = (regionId, countryId) =>
   (COUNTRIES_BY_REGION[regionId] ?? []).find(c => c.id === countryId)?.name ?? '—';
 const formatDate  = (iso) => {
   if (!iso) return '—';
-  const [y, m, d] = iso.split('-');
-  return `${d} de ${MONTHS.find(mo => mo.v === m)?.label ?? m} de ${y}`;
+  // support 'YYYY-MM-DD' and full ISO 'YYYY-MM-DDTHH:MM:SSZ'
+  const datePart = iso.includes('T') ? iso.split('T')[0] : iso;
+  const [y, m, d] = datePart.split('-');
+  const day = d ? String(Number(d)).padStart(2, '0') : '—';
+  return `${day} de ${MONTHS.find(mo => mo.v === m)?.label ?? m} de ${y}`;
+};
+
+const parseDateParts = (iso) => {
+  if (!iso) return { day: '', month: '', year: '' };
+  const datePart = iso.includes('T') ? iso.split('T')[0] : iso;
+  const [y, m, d] = datePart.split('-');
+  return { day: d ? String(Number(d)) : '', month: m || '', year: y || '' };
 };
 
 /* ── Inline input ───────────────────────────────────────────────────────── */
@@ -64,9 +74,7 @@ function EditModal({ user, onSave, onClose }) {
     email:      user.email      ?? '',
     region_id:  user.region_id  ?? '',
     country_id: user.country_id ?? '',
-    day:   user.fecha_nac ? user.fecha_nac.split('-')[2] : '',
-    month: user.fecha_nac ? user.fecha_nac.split('-')[1] : '',
-    year:  user.fecha_nac ? user.fecha_nac.split('-')[0] : '',
+    ...parseDateParts(user.fecha_nac),
   });
   const [errors,  setErrors]  = useState({});
   const [loading, setLoading] = useState(false);

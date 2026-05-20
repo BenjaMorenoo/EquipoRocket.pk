@@ -33,3 +33,8 @@ export const getUserById = async (id) => {
   const { rows } = await query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [id]);
   return rows[0] || null;
 };
+
+export const getUserByUsername = async (username) => {
+  const { rows } = await query(`SELECT * FROM users WHERE LOWER(username)=LOWER($1) LIMIT 1`, [username.trim()]);
+  return rows[0] || null;
+};

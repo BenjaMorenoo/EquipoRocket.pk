@@ -35,10 +35,15 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success:false, error: 'email y password requeridos' });
+    const { email, username, password, identifier } = req.body;
+    const idf = identifier || email || username;
+    if (!idf || !password) return res.status(400).json({ success:false, error: 'identifier/email/username y password requeridos' });
 
-    const user = await UserRepo.findByEmail(email);
+    // decide lookup by email pattern or username
+    let user = null;
+    const isEmail = typeof idf === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(idf);
+    if (isEmail) user = await UserRepo.findByEmail(idf);
+    else user = await UserRepo.findByUsername(idf);
     if (!user) return res.status(401).json({ success:false, error: 'INVALID_CREDENTIALS' });
 
     const match = await bcrypt.compare(password, user.password_hash || '');

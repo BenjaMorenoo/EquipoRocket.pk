@@ -7,6 +7,7 @@ export class UserRepository {
   async emailExists(email) { return Model.emailExists(email); }
   async usernameExists(username) { return Model.usernameExists(username); }
   async findByEmail(email) { return Model.getUserByEmail(email); }
+  async findByUsername(username) { return Model.getUserByUsername(username); }
 }
 
 export default new UserRepository();
