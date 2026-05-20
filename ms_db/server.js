@@ -64,8 +64,15 @@ async function applySchema() {
       try {
         await client.query(toExec);
       } catch (err) {
-        // If a statement fails, throw with context
-        throw new Error(`Error executing statement: ${err.message}\nStatement: ${toExec.substring(0,200)}`);
+        // Ignore 'already exists' errors (Postgres code 42P07) so idempotent runs succeed
+        const code = err && err.code ? err.code : null;
+        const msg = err && err.message ? err.message : String(err);
+        if (code === '42P07' || /already exists/i.test(msg)) {
+          console.warn('Schema: object already exists, skipping statement. Detail:', msg.split('\n')[0]);
+          continue;
+        }
+        // Also ignore 'null value violates not-null constraint' for seed partials? No - surface real errors
+        throw new Error(`Error executing statement: ${msg}\nStatement: ${toExec.substring(0,200)}`);
       }
     }
 
