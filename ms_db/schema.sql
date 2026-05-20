@@ -19,6 +19,101 @@ CREATE TABLE countries (
     CONSTRAINT fk_countries_region FOREIGN KEY (region_id) REFERENCES regions(id)
 );
 
+-- ── Seed: regiones y países básicos (id fijos para coincidir con frontend)
+-- Estas sentencias son idempotentes y pueden ejecutarse varias veces.
+INSERT INTO regions (id, name) VALUES
+    (1, 'Latinoamérica'),
+    (2, 'Norteamérica'),
+    (3, 'Europa'),
+    (4, 'Asia-Pacífico'),
+    (5, 'Medio Oriente y África'),
+    (6, 'Oceanía')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO countries (id, name, region_id) VALUES
+    (1,  'Argentina', 1),
+    (2,  'Bolivia', 1),
+    (3,  'Brasil', 1),
+    (4,  'Chile', 1),
+    (5,  'Colombia', 1),
+    (6,  'Costa Rica', 1),
+    (7,  'Cuba', 1),
+    (8,  'Ecuador', 1),
+    (9,  'El Salvador', 1),
+    (10, 'Guatemala', 1),
+    (11, 'Honduras', 1),
+    (12, 'México', 1),
+    (13, 'Nicaragua', 1),
+    (14, 'Panamá', 1),
+    (15, 'Paraguay', 1),
+    (16, 'Perú', 1),
+    (17, 'Puerto Rico', 1),
+    (18, 'República Dominicana', 1),
+    (19, 'Uruguay', 1),
+    (20, 'Venezuela', 1),
+    (21, 'Canadá', 2),
+    (22, 'Estados Unidos', 2),
+    (23, 'Alemania', 3),
+    (24, 'Austria', 3),
+    (25, 'Bélgica', 3),
+    (26, 'Bulgaria', 3),
+    (27, 'Chipre', 3),
+    (28, 'Croacia', 3),
+    (29, 'Dinamarca', 3),
+    (30, 'Eslovaquia', 3),
+    (31, 'Eslovenia', 3),
+    (32, 'España', 3),
+    (33, 'Estonia', 3),
+    (34, 'Finlandia', 3),
+    (35, 'Francia', 3),
+    (36, 'Grecia', 3),
+    (37, 'Hungría', 3),
+    (38, 'Irlanda', 3),
+    (39, 'Islandia', 3),
+    (40, 'Italia', 3),
+    (41, 'Letonia', 3),
+    (42, 'Lituania', 3),
+    (43, 'Luxemburgo', 3),
+    (44, 'Malta', 3),
+    (45, 'Noruega', 3),
+    (46, 'Países Bajos', 3),
+    (47, 'Polonia', 3),
+    (48, 'Portugal', 3),
+    (49, 'Reino Unido', 3),
+    (50, 'República Checa', 3),
+    (51, 'Rumania', 3),
+    (52, 'Suecia', 3),
+    (53, 'Suiza', 3),
+    (54, 'Turquía', 3),
+    (55, 'China', 4),
+    (56, 'Corea del Sur', 4),
+    (57, 'Filipinas', 4),
+    (58, 'Hong Kong', 4),
+    (59, 'India', 4),
+    (60, 'Indonesia', 4),
+    (61, 'Japón', 4),
+    (62, 'Malasia', 4),
+    (63, 'Singapur', 4),
+    (64, 'Taiwán', 4),
+    (65, 'Tailandia', 4),
+    (66, 'Vietnam', 4),
+    (67, 'Arabia Saudita', 5),
+    (68, 'Emiratos Árabes Unidos', 5),
+    (69, 'Israel', 5),
+    (70, 'Jordania', 5),
+    (71, 'Kuwait', 5),
+    (72, 'Marruecos', 5),
+    (73, 'Qatar', 5),
+    (74, 'Sudáfrica', 5),
+    (75, 'Australia', 6),
+    (76, 'Nueva Zelanda', 6)
+ON CONFLICT (id) DO NOTHING;
+
+-- Ajustar secuencias para evitar valores duplicados en futuros inserts
+SELECT setval(pg_get_serial_sequence('regions','id'), COALESCE((SELECT MAX(id) FROM regions), 1));
+SELECT setval(pg_get_serial_sequence('countries','id'), COALESCE((SELECT MAX(id) FROM countries), 1));
+
+
 -- --- USUARIOS ---
 
 CREATE TABLE users (

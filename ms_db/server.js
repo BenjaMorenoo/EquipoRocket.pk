@@ -78,11 +78,11 @@ async function applySchema() {
 app.post('/init', async (req, res) => {
   try {
     const result = await createDatabaseIfNotExists();
-    if (result.created) {
-      await applySchema();
-      return res.status(201).json({ message: result.message, schema: 'applied' });
-    }
-    return res.status(200).json({ message: result.message });
+    // Siempre intentamos aplicar el esquema/seed; las sentencias en schema.sql
+    // son idempotentes (ON CONFLICT DO NOTHING), por lo que es seguro ejecutarlas
+    // aunque la base de datos ya exista.
+    await applySchema();
+    return res.status(200).json({ message: result.message, schema: 'applied' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message });
@@ -99,10 +99,9 @@ if (process.argv[2] === 'init') {
       console.log('Initializing database...');
       const result = await createDatabaseIfNotExists();
       console.log(result.message);
-      if (result.created) {
-        await applySchema();
-        console.log('Schema applied');
-      }
+      // Aplicar esquema siempre: las sentencias son idempotentes
+      await applySchema();
+      console.log('Schema applied');
       process.exit(0);
     } catch (err) {
       console.error('Init failed:', err.message);
