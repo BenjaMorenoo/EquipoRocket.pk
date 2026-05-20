@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  ms_pokemon:
+    build: .
+    container_name: ms_pokemon
+    env_file: .env
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=example
+      - DB_NAME=equiporocketDb
+      - PORT=3002
+    ports:
+      - "3002:3002"
+    networks:
+      - equiporocket-net
+    restart: unless-stopped
+
+networks:
+  equiporocket-net:
+    external: true

@@ -68,6 +68,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const handleAuthPromptLogin    = () => { setAuthPrompt(null); onNavigate?.('auth'); };
   const handleAuthPromptRegister = () => { setAuthPrompt(null); onNavigate?.('auth'); };
 
+
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 24px 60px' }}>
 
@@ -223,6 +224,8 @@ export default function TeamBuilder({ onSave, onNavigate }) {
             {activeTab==='weakness' && <><p style={{ fontSize:'11px', color:'var(--color-pk-muted)', marginBottom:'10px' }}>Tipos que causan mayor daño defensivo</p><TeamWeaknessChart team={team} /></>}
             {activeTab==='coverage' && <><p style={{ fontSize:'11px', color:'var(--color-pk-muted)', marginBottom:'10px' }}>Tipos STAB representados en el equipo</p><TypeCoverageGrid team={team} /></>}
           </div>
+
+          
         </div>
       </div>
 
