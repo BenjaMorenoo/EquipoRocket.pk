@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  ms_usuarios:
+    build: .
+    container_name: ms_usuarios
+    env_file: .env
+    environment:
+      - DB_HOST=ms_db
+      - DB_PORT=5432
+      - DB_NAME=equiporocketDb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - PORT=3003
+      - JWT_SECRET=dev_jwt_secret
+    ports:
+      - "3003:3003"
+    networks:
+      - equiporocket-net
+    restart: unless-stopped
+
+networks:
+  equiporocket-net:
+    external: true

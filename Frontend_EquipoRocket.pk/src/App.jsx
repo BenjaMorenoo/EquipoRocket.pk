@@ -8,6 +8,7 @@ import TeamBuilder  from './pages/TeamBuilder';
 import MyTeams      from './pages/MyTeams';
 import UserProfile  from './pages/UserProfile';
 import AdminPanel   from './pages/AdminPanel';
+import { createTeam } from './services/api';
 
 function PlaceholderPage({ title, icon, description }) {
   return (
@@ -51,9 +52,16 @@ function AppShell() {
   };
 
   const handleSaveTeam = async (teamData) => {
-    console.log('[TeamBuilder] Guardando equipo:', teamData);
-    await new Promise(r => setTimeout(r, 800));
-    setCurrentPage('teams');
+    try {
+      console.log('[TeamBuilder] Guardando equipo:', teamData);
+      // createTeam from API
+      const res = await createTeam(teamData);
+      console.log('Equipo guardado', res);
+      setCurrentPage('teams');
+    } catch (e) {
+      console.error('Error guardando equipo', e.message);
+      alert('No se pudo guardar el equipo: ' + (e.message || 'error'));
+    }
   };
 
   const handlePreviewAsUser = () => { setPreviewMode(true); if (currentPage === 'admin') setCurrentPage('home'); };

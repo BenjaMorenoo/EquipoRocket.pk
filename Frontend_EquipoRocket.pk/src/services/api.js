@@ -58,27 +58,42 @@ backendAPI.interceptors.response.use(
 
 // ── Team endpoints ──────────────────────────────────────────────────────────
 export const getTeams = async () => {
-  const { data } = await backendAPI.get('/teams');
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/teams`, { headers });
   return data;
 };
 
 export const getTeamById = async (id) => {
-  const { data } = await backendAPI.get(`/teams/${id}`);
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/teams/${id}`, { headers });
   return data;
 };
 
 export const createTeam = async (team) => {
-  const { data } = await backendAPI.post('/teams', team);
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.post(`${msUsersBase}/teams`, team, { headers });
   return data;
 };
 
 export const updateTeam = async (id, team) => {
-  const { data } = await backendAPI.put(`/teams/${id}`, team);
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.put(`${msUsersBase}/teams/${id}`, team, { headers });
   return data;
 };
 
 export const deleteTeam = async (id) => {
-  const { data } = await backendAPI.delete(`/teams/${id}`);
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.delete(`${msUsersBase}/teams/${id}`, { headers });
   return data;
 };
 

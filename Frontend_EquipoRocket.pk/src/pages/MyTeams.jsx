@@ -1,5 +1,6 @@
 // src/pages/MyTeams.jsx
 import { useState, useEffect } from 'react';
+import { getTeams, deleteTeam as apiDeleteTeam } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
 
 // Mock data while backend is not connected
@@ -176,8 +177,8 @@ function TeamCard({ team, onEdit, onDelete }) {
 }
 
 export default function MyTeams({ onNavigateToBuilder }) {
-  const [teams, setTeams] = useState(MOCK_TEAMS);
-  const [loading, setLoading] = useState(false);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handleEdit = (team) => {
     onNavigateToBuilder?.(team);
@@ -185,8 +186,29 @@ export default function MyTeams({ onNavigateToBuilder }) {
 
   const handleDelete = (id) => {
     if (!window.confirm('¿Seguro que quieres eliminar este equipo?')) return;
-    setTeams((prev) => prev.filter((t) => t.id !== id));
+    (async () => {
+      try {
+        await apiDeleteTeam(id);
+        setTeams((prev) => prev.filter((t) => t.id !== id));
+      } catch (e) {
+        console.error('Error eliminando equipo', e.message);
+        alert('No se pudo eliminar el equipo');
+      }
+    })();
   };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await getTeams();
+        setTeams(res?.data?.teams || res?.teams || []);
+      } catch (e) {
+        console.error('Error cargando equipos', e.message);
+        setTeams([]);
+      } finally { setLoading(false); }
+    })();
+  }, []);
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 24px 60px' }}>
