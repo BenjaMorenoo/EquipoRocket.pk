@@ -1,0 +1,14 @@
+node_modules/
+npm-debug.log
+package-lock.json
+yarn.lock
+.env
+pgdata/
+.DS_Store
+.vscode/
+logs/
+*.log
+coverage/
+dist/
+build/
+.idea/

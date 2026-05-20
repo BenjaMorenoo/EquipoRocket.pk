@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  ms_carga_api:
+    build: .
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: example
+      DB_NAME: equiporocketDb
+      API_URL: https://www.pikalytics.com/api/p/2026-04/gen9championsvgc2026regma-1760/
+      PORT: 8000
+    depends_on: []
+    ports:
+      - "8000:8000"
+    command: bash -c 'until bash -c "cat < /dev/tcp/postgres/5432 >/dev/null 2>&1"; do echo "Waiting for Postgres..."; sleep 1; done; uvicorn main:app --host 0.0.0.0 --port 8000'
+    networks:
+      - equiporocket-net
+
+networks:
+  equiporocket-net:
+    external: true

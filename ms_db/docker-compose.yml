@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: postgres
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      equiporocket-net:
+        aliases:
+          - postgres
+
+  ms_db:
+    build: .
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: example
+      DB_NAME: equiporocketDb
+      PORT: 4002
+    depends_on:
+      - postgres
+    ports:
+      - "4002:4002"
+    command: bash -c 'until bash -c "cat < /dev/tcp/postgres/5432 >/dev/null 2>&1"; do echo "Waiting for Postgres..."; sleep 1; done; npm run init-db || true; npm start'
+    networks:
+      - equiporocket-net
+
+# Using a host bind mount for postgres data at ./pgdata to ensure persistence on the host filesystem
+
+networks:
+  equiporocket-net:
+    external: true
