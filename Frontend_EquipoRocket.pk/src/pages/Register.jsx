@@ -1,5 +1,6 @@
 // src/pages/Register.jsx
 import { useState, useEffect } from 'react';
+import { FaExclamationTriangle, FaEye, FaEyeSlash, FaCheck, FaTimes, FaLock, FaEnvelope, FaGlobe, FaMapMarkerAlt, FaBirthdayCake, FaUser } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../services/api';
 import { validators, passwordStrength } from '../utils/validators';
@@ -28,8 +29,8 @@ function Field({ label, error, hint, required, children }) {
         <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>{hint}</span>
       )}
       {error && (
-        <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-          <span style={{ flexShrink: 0 }}>⚠</span> {error}
+        <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+          <FaExclamationTriangle /> {error}
         </span>
       )}
     </div>
@@ -240,7 +241,7 @@ export default function Register({ onGoLogin }) {
           borderRadius: '10px', padding: '11px 14px', fontSize: '13px', color: '#fca5a5',
           display: 'flex', alignItems: 'flex-start', gap: '8px',
         }}>
-          <span style={{ flexShrink: 0 }}>⚠</span> {apiErr}
+          <FaExclamationTriangle style={{ flexShrink: 0 }} /> {apiErr}
         </div>
       )}
 
@@ -296,7 +297,7 @@ export default function Register({ onGoLogin }) {
               <button type="button" onClick={() => setShowPwd((p) => !p)} tabIndex={-1}
                 style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: '15px' }}>
-                {showPwd ? '🙈' : '👁'}
+                {showPwd ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
             {/* Strength bar */}
@@ -332,7 +333,7 @@ export default function Register({ onGoLogin }) {
               <button type="button" onClick={() => setShowCPwd((p) => !p)} tabIndex={-1}
                 style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: '15px' }}>
-                {showCPwd ? '🙈' : '👁'}
+                {showCPwd ? <FaEyeSlash /> : <FaEye />}
               </button>
               {/* Match indicator */}
               {form.confirmPassword && (
@@ -340,7 +341,7 @@ export default function Register({ onGoLogin }) {
                   position: 'absolute', right: '38px', top: '50%', transform: 'translateY(-50%)',
                   fontSize: '14px',
                 }}>
-                  {form.confirmPassword === form.password ? '✅' : '❌'}
+                  {form.confirmPassword === form.password ? (<FaCheck style={{ color: '#16a34a' }} />) : (<FaTimes style={{ color: '#ef4444' }} />)}
                 </span>
               )}
             </div>
@@ -460,19 +461,19 @@ export default function Register({ onGoLogin }) {
             gap: '10px',
           }}>
             {[
-              { icon: '👤', label: 'Usuario',    value: form.username },
-              { icon: '📧', label: 'Correo',     value: form.email },
-              { icon: '🔒', label: 'Contraseña', value: '•'.repeat(form.password.length) },
+              { icon: <FaUser />, label: 'Usuario',    value: form.username },
+                { icon: <FaEnvelope />, label: 'Correo',     value: form.email },
+                { icon: <FaLock />, label: 'Contraseña', value: '•'.repeat(form.password.length) },
               {
-                icon: '🌎', label: 'Región',
+                icon: <FaGlobe />, label: 'Región',
                 value: REGIONS.find((r) => r.id === Number(form.region_id))?.name || '—',
               },
               {
-                icon: '📍', label: 'País',
+                icon: <FaMapMarkerAlt />, label: 'País',
                 value: countries.find((c) => c.id === Number(form.country_id))?.name || '—',
               },
               {
-                icon: '🎂', label: 'Nacimiento',
+                icon: <FaBirthdayCake />, label: 'Nacimiento',
                 value: form.day && form.month && form.year
                   ? `${String(form.day).padStart(2,'0')} de ${MONTHS.find((m) => m.v === form.month)?.label} de ${form.year}`
                   : '—',
@@ -500,7 +501,7 @@ export default function Register({ onGoLogin }) {
             color: 'var(--color-pk-blue)',
             lineHeight: 1.5,
           }}>
-            🔐 Tu contraseña será almacenada con hash seguro. Los campos <strong>is_admin</strong>, <strong>is_active</strong> y <strong>created_at</strong> son asignados automáticamente por el servidor y sólo son visibles para administradores.
+            <FaLock style={{ marginRight: 8 }} /> Tu contraseña será almacenada con hash seguro. Los campos <strong>is_admin</strong>, <strong>is_active</strong> y <strong>created_at</strong> son asignados automáticamente por el servidor y sólo son visibles para administradores.
           </div>
         </div>
       )}
@@ -535,7 +536,7 @@ export default function Register({ onGoLogin }) {
                 }} />
                 Registrando...
               </>
-            ) : '✅ Crear cuenta'}
+            ) : (<><FaCheck style={{ marginRight: 8 }} /> Crear cuenta</>)}
           </button>
         )}
       </div>

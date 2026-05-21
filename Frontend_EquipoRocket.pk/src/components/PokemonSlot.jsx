@@ -1,6 +1,7 @@
 // src/components/PokemonSlot.jsx
 import TypeBadge from './TypeBadge';
 import { STAT_COLORS, STAT_LABELS } from '../utils/typeColors';
+import { FaQuestionCircle, FaTimes, FaPlus } from 'react-icons/fa';
 
 const STAT_ORDER = ['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'];
 const MAX_STAT = 255;
@@ -91,7 +92,7 @@ function EmptySlot({ slotNumber, onClick }) {
         color: 'var(--color-pk-muted)',
         transition: 'all 0.2s ease',
       }}>
-        +
+        <FaPlus />
       </div>
 
       <span style={{
@@ -196,7 +197,7 @@ function FilledSlot({ pokemon, slotNumber, onRemove, onClick }) {
           }}
           aria-label={`Remover ${name}`}
         >
-          ✕
+          <FaTimes />
         </button>
       </div>
 
@@ -220,7 +221,7 @@ function FilledSlot({ pokemon, slotNumber, onRemove, onClick }) {
               style={{ width: '68px', height: '68px', objectFit: 'contain', imageRendering: 'auto' }}
             />
           ) : (
-            <span style={{ fontSize: '36px' }}>❓</span>
+            <FaQuestionCircle style={{ fontSize: 36, color: 'var(--color-pk-muted)' }} />
           )}
         </div>
 

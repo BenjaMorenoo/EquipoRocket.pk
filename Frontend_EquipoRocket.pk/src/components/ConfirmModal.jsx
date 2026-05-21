@@ -1,5 +1,6 @@
 // src/components/ConfirmModal.jsx
 import { useState, useEffect, useRef } from 'react';
+import { FaExclamationTriangle, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 /**
  * Props:
@@ -92,7 +93,7 @@ export default function ConfirmModal({
             background: 'rgba(239,68,68,0.12)', border: '2px solid rgba(239,68,68,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px',
           }}>
-            ⚠️
+            <FaExclamationTriangle />
           </div>
           <h2 style={{
             fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '20px',
@@ -160,7 +161,7 @@ export default function ConfirmModal({
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: 'var(--color-pk-muted)', fontSize: '15px',
               }}>
-                {showPwd ? '🙈' : '👁'}
+                {showPwd ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
           </div>
@@ -174,7 +175,7 @@ export default function ConfirmModal({
             fontSize: '12px', color: '#fca5a5',
             display: 'flex', gap: '6px', alignItems: 'flex-start',
           }}>
-            <span>⚠</span> {error}
+            <FaExclamationTriangle /> {error}
           </div>
         )}
 

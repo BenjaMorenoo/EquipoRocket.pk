@@ -1,5 +1,6 @@
 // src/pages/AuthPage.jsx
 import { useState } from 'react';
+import { FaLayerGroup, FaChartBar, FaTrophy, FaBolt, FaUserPlus } from 'react-icons/fa';
 import Login from './Login';
 import Register from './Register';
 
@@ -110,9 +111,9 @@ export default function AuthPage() {
 
           {/* Feature pills */}
           {[
-            { icon: '⚔️', text: 'Constructor de equipos' },
-            { icon: '📊', text: 'Análisis de cobertura' },
-            { icon: '🏆', text: 'Rankings competitivos' },
+            { icon: <FaLayerGroup />, text: 'Constructor de equipos' },
+            { icon: <FaChartBar />, text: 'Análisis de cobertura' },
+            { icon: <FaTrophy />, text: 'Rankings competitivos' },
           ].map((f) => (
             <div key={f.text} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
@@ -183,8 +184,8 @@ export default function AuthPage() {
               marginBottom: '24px',
             }}>
               {[
-                { id: 'login',    label: '⚡ Iniciar Sesión' },
-                { id: 'register', label: '✨ Registrarse'   },
+                { id: 'login',    label: (<><FaBolt style={{ marginRight: 8 }} /> Iniciar Sesión</>) },
+                { id: 'register', label: (<><FaUserPlus style={{ marginRight: 8 }} /> Registrarse</>) },
               ].map((tab) => (
                 <button
                   key={tab.id}

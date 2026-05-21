@@ -9,7 +9,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 
 export const register = async (req, res) => {
   try {
-    const { username, email, password, region_id, country_id, fecha_nac } = req.body;
+    const { username, email, password, region_id, country_id, fecha_nac, is_admin } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ success:false, error: 'username, email y password son requeridos' });
     }
@@ -24,7 +24,24 @@ export const register = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS || '12'));
 
-    const user = await UserRepo.create({ username, email, password_hash, region_id, country_id, fecha_nac });
+    // If request tries to create an admin user, ensure caller is an admin.
+    if (is_admin) {
+      try {
+        const auth = req.headers.authorization || '';
+        const m = auth.match(/^Bearer\s+(.+)$/i);
+        if (!m) return res.status(403).json({ success:false, error: 'FORBIDDEN' });
+        const token = m[1];
+        const payload = jwt.verify(token, JWT_SECRET);
+        // fallback to model to fetch user
+        const userModel = await import('../models/userModel.js');
+        const caller = await userModel.getUserById(payload.sub);
+        if (!caller || !caller.is_admin) return res.status(403).json({ success:false, error: 'FORBIDDEN' });
+      } catch (e) {
+        return res.status(403).json({ success:false, error: 'FORBIDDEN' });
+      }
+    }
+
+    const user = await UserRepo.create({ username, email, password_hash, region_id, country_id, fecha_nac, is_admin });
 
     return res.status(201).json({ success:true, data: { user } });
   } catch (e) {
@@ -60,6 +77,7 @@ export const login = async (req, res) => {
       region_id: user.region_id,
       country_id: user.country_id,
       fecha_nac: user.fecha_nac,
+      is_admin: user.is_admin,
       is_active: user.is_active,
       created_at: user.created_at,
     };
@@ -67,6 +85,33 @@ export const login = async (req, res) => {
     return res.status(200).json({ success:true, data: { token, user: publicUser } });
   } catch (e) {
     console.error('[ms_auth] Error en login:', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+export const listUsers = async (req, res) => {
+  try {
+    const userModel = await import('../models/userModel.js');
+    const users = await userModel.listUsers();
+    return res.json({ success:true, data: { users } });
+  } catch (e) {
+    console.error('[ms_auth] Error en listUsers:', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+export const setUserActive = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ success:false, error: 'INVALID_ID' });
+    const { active } = req.body;
+    if (typeof active !== 'boolean') return res.status(400).json({ success:false, error: 'INVALID_PAYLOAD' });
+    const userModel = await import('../models/userModel.js');
+    const u = await userModel.setUserActive(id, active);
+    if (!u) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+    return res.json({ success:true, data: { user: u } });
+  } catch (e) {
+    console.error('[ms_auth] Error en setUserActive:', e.message);
     return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
   }
 };
@@ -94,7 +139,7 @@ export const me = async (req, res) => {
         const publicUser = {
           id: u.id, username: u.username, email: u.email,
           region_id: u.region_id, country_id: u.country_id, fecha_nac: u.fecha_nac,
-          is_active: u.is_active, created_at: u.created_at,
+          is_admin: u.is_admin, is_active: u.is_active, created_at: u.created_at,
         };
         return res.json({ success:true, data: { user: publicUser } });
       }
@@ -104,7 +149,7 @@ export const me = async (req, res) => {
     const publicUser = {
       id: user.id, username: user.username, email: user.email,
       region_id: user.region_id, country_id: user.country_id, fecha_nac: user.fecha_nac,
-      is_active: user.is_active, created_at: user.created_at,
+      is_admin: user.is_admin, is_active: user.is_active, created_at: user.created_at,
     };
     return res.json({ success:true, data: { user: publicUser } });
   } catch (e) {

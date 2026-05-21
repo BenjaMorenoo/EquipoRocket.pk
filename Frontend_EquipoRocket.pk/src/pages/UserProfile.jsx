@@ -1,5 +1,6 @@
 // src/pages/UserProfile.jsx
 import { useState } from 'react';
+import { FaLock, FaEdit, FaTimes, FaEye, FaEyeSlash, FaUnlock, FaSave, FaGlobe, FaMapMarkerAlt, FaBirthdayCake, FaCalendarAlt, FaCheck, FaExclamationTriangle, FaLayerGroup, FaPlus } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { validators } from '../utils/validators';
 import { REGIONS, COUNTRIES_BY_REGION, MONTHS } from '../utils/regions';
@@ -148,9 +149,9 @@ function EditModal({ user, onSave, onClose }) {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>
-            {step === 0 ? '🔒 Verificar identidad' : '✏️ Editar perfil'}
+            {step === 0 ? (<><FaLock style={{ marginRight: 8 }} /> Verificar identidad</>) : (<><FaEdit style={{ marginRight: 8 }} /> Editar perfil</>)}
           </h2>
-          <button onClick={onClose} style={{ background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)', borderRadius: '8px', color: 'var(--color-pk-muted)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)', borderRadius: '8px', color: 'var(--color-pk-muted)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}><FaTimes /></button>
         </div>
 
         {/* ── GATE: password verification ── */}
@@ -173,13 +174,13 @@ function EditModal({ user, onSave, onClose }) {
                   autoFocus
                 />
                 <button type="button" onClick={() => setShowGate(p => !p)} tabIndex={-1} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: '15px' }}>
-                  {showGate ? '🙈' : '👁'}
+                  {showGate ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
-              {gateErr && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {gateErr}</span>}
+              {gateErr && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {gateErr}</span>}
             </div>
-            <button className="pk-btn pk-btn-primary" onClick={verifyPassword} disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '14px', opacity: loading ? .7 : 1 }}>
-              {loading ? 'Verificando...' : '🔓 Verificar y editar'}
+            <button className="pk-btn pk-btn-primary" onClick={verifyPassword} disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '14px', opacity: loading ? .7 : 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+              {loading ? 'Verificando...' : (<><FaUnlock /> Verificar y editar</>)}
             </button>
           </>
         )}
@@ -187,7 +188,7 @@ function EditModal({ user, onSave, onClose }) {
         {/* ── EDIT FORM ── */}
         {step === 1 && (
           <>
-            {apiErr && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '10px 13px', fontSize: '12px', color: '#fca5a5' }}>⚠ {apiErr}</div>}
+            {apiErr && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '10px 13px', fontSize: '12px', color: '#fca5a5' }}><FaExclamationTriangle /> {apiErr}</div>}
 
             {/* Username */}
             {[
@@ -197,7 +198,7 @@ function EditModal({ user, onSave, onClose }) {
               <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <label style={{ fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: errors[f.key] ? '#ef4444' : 'var(--color-pk-subtle)' }}>{f.label}</label>
                 <input type={f.type} placeholder={f.placeholder} value={form[f.key]} maxLength={f.maxLength} onChange={e => set(f.key, e.target.value)} style={inp(!!errors[f.key])} onFocus={focusOn} onBlur={e => focusOff(e, !!errors[f.key])} />
-                {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors[f.key]}</span>}
+                {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors[f.key]}</span>}
               </div>
             ))}
 
@@ -208,7 +209,7 @@ function EditModal({ user, onSave, onClose }) {
                 <option value="" style={{ background: 'var(--color-pk-card)' }}>— Selecciona —</option>
                 {REGIONS.map(r => <option key={r.id} value={r.id} style={{ background: 'var(--color-pk-card)' }}>{r.name}</option>)}
               </select>
-              {errors.region_id && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors.region_id}</span>}
+              {errors.region_id && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors.region_id}</span>}
             </div>
 
             {/* Country */}
@@ -218,7 +219,7 @@ function EditModal({ user, onSave, onClose }) {
                 <option value="" style={{ background: 'var(--color-pk-card)' }}>— Selecciona —</option>
                 {countries.map(c => <option key={c.id} value={c.id} style={{ background: 'var(--color-pk-card)' }}>{c.name}</option>)}
               </select>
-              {errors.country_id && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors.country_id}</span>}
+              {errors.country_id && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors.country_id}</span>}
             </div>
 
             {/* Date */}
@@ -236,13 +237,13 @@ function EditModal({ user, onSave, onClose }) {
                   </select>
                 ))}
               </div>
-              {errors.fechaNac && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors.fechaNac}</span>}
+              {errors.fechaNac && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors.fechaNac}</span>}
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
               <button className="pk-btn pk-btn-secondary" onClick={onClose} style={{ flex: 1, justifyContent: 'center', padding: '12px' }}>Cancelar</button>
-              <button className="pk-btn pk-btn-primary"   onClick={handleSave} disabled={loading} style={{ flex: 2, justifyContent: 'center', padding: '12px', opacity: loading ? .7 : 1 }}>
-                {loading ? 'Guardando...' : '💾 Guardar cambios'}
+              <button className="pk-btn pk-btn-primary"   onClick={handleSave} disabled={loading} style={{ flex: 2, justifyContent: 'center', padding: '12px', opacity: loading ? .7 : 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                {loading ? 'Guardando...' : (<><FaSave /> Guardar cambios</>)}
               </button>
             </div>
           </>
@@ -284,7 +285,7 @@ export default function UserProfile({ onNavigate }) {
           color: '#4ade80', fontFamily: 'var(--font-heading)', fontWeight: 700,
           fontSize: '13px', letterSpacing: '0.06em', animation: 'fadeIn .2s ease',
         }}>
-          ✅ Perfil actualizado correctamente
+          <FaCheck style={{ marginRight: 8 }} /> Perfil actualizado correctamente
         </div>
       )}
 
@@ -293,8 +294,8 @@ export default function UserProfile({ onNavigate }) {
         <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 'clamp(22px,4vw,34px)', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>
           Mi <span style={{ color: 'var(--color-pk-red)' }}>Perfil</span>
         </h1>
-        <button className="pk-btn pk-btn-secondary" onClick={() => setEditOpen(true)} style={{ fontSize: '13px', padding: '9px 18px' }}>
-          ✏️ Editar datos
+        <button className="pk-btn pk-btn-secondary" onClick={() => setEditOpen(true)} style={{ fontSize: '13px', padding: '9px 18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FaEdit /> Editar datos
         </button>
       </div>
 
@@ -334,11 +335,11 @@ export default function UserProfile({ onNavigate }) {
             <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '13px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-pk-muted)', margin: '0 0 4px' }}>
               Información
             </h3>
-            <DataRow icon="🌎" label="Región"           value={regionName(user.region_id)} />
-            <DataRow icon="📍" label="País"             value={countryName(user.region_id, user.country_id)} />
-            <DataRow icon="🎂" label="Fecha nacimiento" value={formatDate(user.fecha_nac)} />
+            <DataRow icon={<FaGlobe />} label="Región"           value={regionName(user.region_id)} />
+            <DataRow icon={<FaMapMarkerAlt />} label="País"             value={countryName(user.region_id, user.country_id)} />
+            <DataRow icon={<FaBirthdayCake />} label="Fecha nacimiento" value={formatDate(user.fecha_nac)} />
             <div style={{ borderBottom: 'none', paddingBottom: 0 }}>
-              <DataRow icon="📅" label="Miembro desde"  value={user.created_at ? new Date(user.created_at).toLocaleDateString('es-CL') : '—'} />
+              <DataRow icon={<FaCalendarAlt />} label="Miembro desde"  value={user.created_at ? new Date(user.created_at).toLocaleDateString('es-CL') : '—'} />
             </div>
           </div>
         </div>
@@ -348,10 +349,10 @@ export default function UserProfile({ onNavigate }) {
           <div className="pk-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '14px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
-                ⚔️ Mis Equipos <span style={{ color: 'var(--color-pk-muted)', fontWeight: 400 }}>({MOCK_TEAMS.length})</span>
+                <FaLayerGroup style={{ marginRight: 8 }} /> Mis Equipos <span style={{ color: 'var(--color-pk-muted)', fontWeight: 400 }}>({MOCK_TEAMS.length})</span>
               </h3>
-              <button className="pk-btn pk-btn-primary" onClick={() => onNavigate?.('builder')} style={{ padding: '6px 14px', fontSize: '12px' }}>
-                + Nuevo
+              <button className="pk-btn pk-btn-primary" onClick={() => onNavigate?.('builder')} style={{ padding: '6px 14px', fontSize: '12px', display:'flex', alignItems:'center', gap:8 }}>
+                <FaPlus /> Nuevo
               </button>
             </div>
 

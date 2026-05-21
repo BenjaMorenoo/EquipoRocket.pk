@@ -2,14 +2,14 @@
 // Acceso a datos para la tabla `users` en la base de ms_db.
 import { query } from '../config/db.js';
 
-const PUBLIC_FIELDS = `id, username, email, region_id, country_id, fecha_nac, is_active, created_at`;
+const PUBLIC_FIELDS = `id, username, email, region_id, country_id, fecha_nac, is_admin, is_active, created_at`;
 
-export const createUser = async ({ username, email, password_hash, region_id, country_id, fecha_nac }) => {
+export const createUser = async ({ username, email, password_hash, region_id, country_id, fecha_nac, is_admin = false }) => {
   const { rows } = await query(
-    `INSERT INTO users (username, email, password_hash, region_id, country_id, fecha_nac)
-     VALUES ($1,$2,$3,$4,$5,$6)
+    `INSERT INTO users (username, email, password_hash, region_id, country_id, fecha_nac, is_admin)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      RETURNING ${PUBLIC_FIELDS}`,
-    [username.trim(), email.trim().toLowerCase(), password_hash, region_id ?? null, country_id ?? null, fecha_nac ?? null]
+    [username.trim(), email.trim().toLowerCase(), password_hash, region_id ?? null, country_id ?? null, fecha_nac ?? null, is_admin === true]
   );
   return rows[0];
 };
@@ -36,5 +36,15 @@ export const getUserById = async (id) => {
 
 export const getUserByUsername = async (username) => {
   const { rows } = await query(`SELECT * FROM users WHERE LOWER(username)=LOWER($1) LIMIT 1`, [username.trim()]);
+  return rows[0] || null;
+};
+
+export const listUsers = async () => {
+  const { rows } = await query(`SELECT id, username, email, region_id, country_id, fecha_nac, is_admin, is_active, created_at FROM users ORDER BY created_at DESC`);
+  return rows;
+};
+
+export const setUserActive = async (id, active) => {
+  const { rows } = await query(`UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id, username, email, region_id, country_id, fecha_nac, is_admin, is_active, created_at`, [active, id]);
   return rows[0] || null;
 };

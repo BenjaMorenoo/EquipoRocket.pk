@@ -1,5 +1,6 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
+import { FaExclamationTriangle, FaEye, FaEyeSlash, FaBolt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/api';
 import { validators } from '../utils/validators';
@@ -20,8 +21,8 @@ function Field({ label, error, children }) {
       </label>
       {children}
       {error && (
-        <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          ⚠ {error}
+        <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <FaExclamationTriangle /> {error}
         </span>
       )}
     </div>
@@ -106,7 +107,7 @@ export default function Login({ onGoRegister }) {
           alignItems: 'flex-start',
           gap: '8px',
         }}>
-          <span style={{ flexShrink: 0, marginTop: '1px' }}>⚠</span>
+          <FaExclamationTriangle style={{ flexShrink: 0, marginTop: '1px' }} />
           {apiErr}
         </div>
       )}
@@ -151,7 +152,7 @@ export default function Login({ onGoRegister }) {
             }}
             tabIndex={-1}
           >
-            {showPwd ? '🙈' : '👁'}
+            {showPwd ? <FaEyeSlash /> : <FaEye />}
           </button>
         </div>
       </Field>
@@ -181,7 +182,7 @@ export default function Login({ onGoRegister }) {
             }} />
             Iniciando sesión...
           </>
-        ) : '⚡ Iniciar Sesión'}
+        ) : (<><FaBolt style={{ marginRight: 8 }} /> Iniciar Sesión</>)}
       </button>
 
       {/* Register link */}

@@ -1,11 +1,12 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
+import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown } from 'react-icons/fa';
 
 const NAV_LINKS = [
-  { id: 'teams',   label: 'Mis Equipos', icon: '⚔️' },
-  { id: 'builder', label: 'Constructor', icon: '🔧' },
-  { id: 'dex',     label: 'Pokédex',     icon: '📖' },
-  { id: 'ranking', label: 'Rankings',    icon: '🏆' },
+  { id: 'teams',   label: 'Mis Equipos', icon: <FaLayerGroup /> },
+  { id: 'builder', label: 'Constructor', icon: <FaWrench /> },
+  { id: 'dex',     label: 'Pokédex',     icon: <FaBook /> },
+  { id: 'ranking', label: 'Rankings',    icon: <FaTrophy /> },
 ];
 
 function NavBtn({ link, active, onNavigate }) {
@@ -78,7 +79,7 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
         <div style={{ textAlign:'left', lineHeight:1.2 }}>
           <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'12px', color:'var(--color-pk-text)', maxWidth:'100px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user?.username}</div>
           <div style={{ fontSize:'9px', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color: isAdmin ? 'var(--color-pk-yellow)' : isPreview ? 'var(--color-pk-blue)' : 'var(--color-pk-muted)' }}>
-            {isAdmin ? '👑 Admin' : isPreview ? '👁 Vista previa' : '👤 Usuario'}
+            {isAdmin ? (<><FaCrown style={{ marginRight: 6 }} /> Admin</>) : isPreview ? (<><FaEye style={{ marginRight: 6 }} /> Vista previa</>) : (<><FaUser style={{ marginRight: 6 }} /> Usuario</>)}
           </div>
         </div>
         <span style={{ fontSize:'10px', color:'var(--color-pk-muted)', transition:'transform .15s', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
@@ -91,12 +92,12 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
           borderRadius:'12px', padding:'6px', minWidth:'180px', zIndex:50,
           boxShadow:'0 8px 32px rgba(0,0,0,0.4)', animation:'dropDown .15s ease',
         }}>
-          <DropItem icon="👤" label="Mi Perfil" onClick={() => { onNavigate('profile'); setOpen(false); }} />
+          <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { onNavigate('profile'); setOpen(false); }} />
           {user?.is_admin && !isPreview && (
-            <DropItem icon="⚙️" label="Panel Admin" onClick={() => { onNavigate('admin'); setOpen(false); }} accent="var(--color-pk-yellow)" />
+            <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { onNavigate('admin'); setOpen(false); }} accent="var(--color-pk-yellow)" />
           )}
           <div style={{ margin:'5px 6px', borderTop:'1px solid var(--color-pk-border)' }} />
-          <DropItem icon="🚪" label="Cerrar sesión" onClick={() => { onLogout(); setOpen(false); }} danger />
+          <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); setOpen(false); }} danger />
         </div>
       )}
       <style>{`@keyframes dropDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }`}</style>
@@ -109,11 +110,11 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
     <>
       {isPreview && (
         <div style={{ background:'rgba(59,130,246,0.1)', borderBottom:'1px solid rgba(59,130,246,0.25)', padding:'7px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:'12px' }}>
-          <span style={{ fontSize:'12px', color:'var(--color-pk-blue)', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.05em' }}>
-            👁 MODO VISTA PREVIA — Estás viendo la app como usuario normal
+          <span style={{ fontSize:'12px', color:'var(--color-pk-blue)', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.05em', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FaEye /> MODO VISTA PREVIA — Estás viendo la app como usuario normal
           </span>
-          <button onClick={onExitPreview} style={{ background:'rgba(59,130,246,0.2)', border:'1px solid rgba(59,130,246,0.4)', borderRadius:'6px', color:'var(--color-pk-blue)', cursor:'pointer', padding:'3px 12px', fontSize:'11px', fontFamily:'var(--font-heading)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
-            Salir ✕
+          <button onClick={onExitPreview} style={{ background:'rgba(59,130,246,0.2)', border:'1px solid rgba(59,130,246,0.4)', borderRadius:'6px', color:'var(--color-pk-blue)', cursor:'pointer', padding:'3px 12px', fontSize:'11px', fontFamily:'var(--font-heading)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:8 }}>
+            Salir <FaTimes />
           </button>
         </div>
       )}
@@ -131,13 +132,13 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
           <div style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center' }}>
             {NAV_LINKS.map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id} onNavigate={onNavigate} />)}
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
-            <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px' }}>+ Nuevo Equipo</button>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
+            <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
             {user
               ? <ProfileDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isPreview={isPreview} />
               : <div style={{ display:'flex', gap:'8px' }}>
-                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px' }}>⚡ Iniciar Sesión</button>
-                  <button onClick={onLoginClick} className="pk-btn pk-btn-primary"   style={{ padding:'7px 14px', fontSize:'12px' }}>✨ Registrarse</button>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaBolt /> Iniciar Sesión</button>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-primary"   style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaUserPlus /> Registrarse</button>
                 </div>
             }
           </div>

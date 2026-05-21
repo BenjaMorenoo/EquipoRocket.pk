@@ -1,10 +1,12 @@
 // src/components/AuthPromptModal.jsx
 // Se muestra cuando un visitante no registrado intenta guardar o exportar.
 
+import { FaSave, FaFileAlt, FaUserPlus, FaBolt } from 'react-icons/fa';
+
 export default function AuthPromptModal({ action = 'guardar', onLogin, onRegister, onClose }) {
   const messages = {
-    guardar:   { icon: '💾', title: 'Guarda tu equipo', desc: 'Crea una cuenta gratuita para guardar tus equipos y acceder a ellos desde cualquier lugar.' },
-    exportar:  { icon: '📄', title: 'Exporta a Showdown', desc: 'Inicia sesión para descargar tu equipo en formato compatible con Pokémon Showdown y Pikalytics.' },
+    guardar:   { icon: <FaSave />, title: 'Guarda tu equipo', desc: 'Crea una cuenta gratuita para guardar tus equipos y acceder a ellos desde cualquier lugar.' },
+    exportar:  { icon: <FaFileAlt />, title: 'Exporta a Showdown', desc: 'Inicia sesión para descargar tu equipo en formato compatible con Pokémon Showdown y Pikalytics.' },
   };
   const msg = messages[action] ?? messages.guardar;
 
@@ -47,16 +49,16 @@ export default function AuthPromptModal({ action = 'guardar', onLogin, onRegiste
           <button
             className="pk-btn pk-btn-primary"
             onClick={onRegister}
-            style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: '14px' }}
+            style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: '14px', display:'flex', alignItems:'center', gap:8 }}
           >
-            ✨ Crear cuenta gratis
+            <FaUserPlus /> Crear cuenta gratis
           </button>
           <button
             className="pk-btn pk-btn-secondary"
             onClick={onLogin}
-            style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: '14px' }}
+            style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: '14px', display:'flex', alignItems:'center', gap:8 }}
           >
-            ⚡ Ya tengo cuenta — Iniciar sesión
+            <FaBolt /> Ya tengo cuenta — Iniciar sesión
           </button>
           <button
             onClick={onClose}

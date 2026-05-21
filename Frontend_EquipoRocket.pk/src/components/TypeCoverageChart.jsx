@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Cell,
 } from 'recharts';
 import { calculateTeamWeaknesses, getTypeColor, ALL_TYPES } from '../utils/typeColors';
+import { FaChartBar } from 'react-icons/fa';
 
 /* ── Radar: individual Pokemon stats ─────────────────────────────────────── */
 export function PokemonStatsRadar({ pokemon }) {
@@ -65,7 +66,7 @@ export function TeamWeaknessChart({ team }) {
       gap: '8px',
       color: 'var(--color-pk-muted)',
     }}>
-      <span style={{ fontSize: '28px' }}>📊</span>
+      <FaChartBar style={{ fontSize: 28 }} />
       <span style={{ fontSize: '12px', fontFamily: 'var(--font-heading)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
         Agrega Pokémon para ver el análisis
       </span>

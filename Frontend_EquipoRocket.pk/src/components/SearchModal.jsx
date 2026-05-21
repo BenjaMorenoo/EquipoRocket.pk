@@ -1,5 +1,6 @@
 // src/components/SearchModal.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { FaSearch, FaTimes } from 'react-icons/fa';
 import { getPokemon, getBackendPokemons, getBackendPokemon } from '../services/api';
 import TypeBadge from './TypeBadge';
 
@@ -289,7 +290,7 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
               flexShrink: 0,
             }}
           >
-            ✕
+            <FaTimes />
           </button>
         </div>
 
@@ -310,9 +311,9 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
               className="pk-btn pk-btn-secondary"
               onClick={handleDirectSearch}
               disabled={directLoad}
-              style={{ padding: '10px 16px', fontSize: '13px' }}
+              style={{ padding: '10px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              {directLoad ? '...' : '🔍'}
+              {directLoad ? '...' : (<FaSearch />)}
             </button>
           </div>
         </div>
@@ -353,7 +354,7 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-pk-muted)' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>😔</div>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>No encontrado</div>
               No se encontró ningún Pokémon con ese nombre.
             </div>
           ) : (

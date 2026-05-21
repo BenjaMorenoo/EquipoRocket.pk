@@ -1,9 +1,11 @@
 // src/pages/AdminPanel.jsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { FaCrown, FaExclamationTriangle, FaTimes, FaEye, FaUsers, FaCheckCircle, FaTrophy, FaSearch, FaTrash, FaUser } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { REGIONS, COUNTRIES_BY_REGION } from '../utils/regions';
 import { validators } from '../utils/validators';
 import ConfirmModal from '../components/ConfirmModal';
+import { getUsers, setUserActive, registerUser } from '../services/api';
 
 /* ── Mock data (replace with API calls when backend is ready) ───────────── */
 const MOCK_USERS = [
@@ -82,17 +84,17 @@ function CreateAdminModal({ onClose, onCreate }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(6,12,24,0.88)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', animation: 'fadeIn .18s ease' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-pk-card)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '20px', padding: '28px', width: 'min(460px,100%)', display: 'flex', flexDirection: 'column', gap: '16px', animation: 'modalSlide .22s ease' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '19px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0, color: 'var(--color-pk-yellow)' }}>
-            👑 Crear Administrador
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '19px', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0, color: 'var(--color-pk-yellow)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FaCrown /> Crear Administrador
           </h2>
-          <button onClick={onClose} style={{ background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)', borderRadius: '8px', color: 'var(--color-pk-muted)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)', borderRadius: '8px', color: 'var(--color-pk-muted)', cursor: 'pointer', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}><FaTimes /></button>
         </div>
 
-        <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '10px', padding: '10px 13px', fontSize: '12px', color: '#fcd34d', lineHeight: 1.5 }}>
-          ⚠️ Solo un administrador puede crear otros administradores. Este usuario tendrá acceso total al panel de administración.
+        <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '10px', padding: '10px 13px', fontSize: '12px', color: '#fcd34d', lineHeight: 1.5, display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <FaExclamationTriangle /> Solo un administrador puede crear otros administradores. Este usuario tendrá acceso total al panel de administración.
         </div>
 
-        {apiErr && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '9px 12px', fontSize: '12px', color: '#fca5a5' }}>⚠ {apiErr}</div>}
+        {apiErr && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '9px 12px', fontSize: '12px', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '8px' }}><FaExclamationTriangle /> {apiErr}</div>}
 
         {[
           { key: 'username', label: 'Nombre de usuario', type: 'text',     placeholder: 'AdminUser',          maxLen: 50 },
@@ -101,7 +103,7 @@ function CreateAdminModal({ onClose, onCreate }) {
           <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <label style={{ fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: errors[f.key] ? '#ef4444' : 'var(--color-pk-subtle)' }}>{f.label}</label>
             <input type={f.type} placeholder={f.placeholder} value={form[f.key]} maxLength={f.maxLen} onChange={e => set(f.key, e.target.value)} style={inp(!!errors[f.key])} onFocus={focusOn} onBlur={e => focusOff(e, !!errors[f.key])} />
-            {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors[f.key]}</span>}
+            {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors[f.key]}</span>}
           </div>
         ))}
 
@@ -113,9 +115,9 @@ function CreateAdminModal({ onClose, onCreate }) {
             <label style={{ fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: errors[f.key] ? '#ef4444' : 'var(--color-pk-subtle)' }}>{f.label}</label>
             <div style={{ position: 'relative' }}>
               <input type={showPwd ? 'text' : 'password'} placeholder="••••••••" value={form[f.key]} onChange={e => set(f.key, e.target.value)} style={{ ...inp(!!errors[f.key]), paddingRight: '42px' }} onFocus={focusOn} onBlur={e => focusOff(e, !!errors[f.key])} />
-              {i === 0 && <button type="button" onClick={() => setShowPwd(p => !p)} tabIndex={-1} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: '15px' }}>{showPwd ? '🙈' : '👁'}</button>}
+              {i === 0 && <button type="button" onClick={() => setShowPwd(p => !p)} tabIndex={-1} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: '15px' }}>{showPwd ? <FaEyeSlash /> : <FaEye />}</button>}
             </div>
-            {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444' }}>⚠ {errors[f.key]}</span>}
+            {errors[f.key] && <span style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}><FaExclamationTriangle /> {errors[f.key]}</span>}
           </div>
         ))}
 
@@ -131,7 +133,7 @@ function CreateAdminModal({ onClose, onCreate }) {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.25)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.15)'; }}
           >
-            {loading ? 'Creando...' : '👑 Crear Admin'}
+            {loading ? 'Creando...' : (<><FaCrown /> Crear Admin</>)}
           </button>
         </div>
       </div>
@@ -143,7 +145,7 @@ function CreateAdminModal({ onClose, onCreate }) {
 /* ── Main Panel ─────────────────────────────────────────────────────────── */
 export default function AdminPanel({ onPreviewAsUser }) {
   const { user: adminUser } = useAuth();
-  const [users,      setUsers]      = useState(MOCK_USERS);
+  const [users,      setUsers]      = useState([]);
   const [search,     setSearch]     = useState('');
   const [filterReg,  setFilterReg]  = useState('');
   const [filterRole, setFilterRole] = useState(''); // '' | 'admin' | 'user'
@@ -180,19 +182,51 @@ export default function AdminPanel({ onPreviewAsUser }) {
 
   /* ── Delete user ── */
   const handleDelete = async (password) => {
-    // TODO: call deleteUser(deleteTarget.id, password) API
-    await new Promise(r => setTimeout(r, 700));
-    setUsers(p => p.filter(u => u.id !== deleteTarget.id));
-    setDeleteTarget(null);
+    try {
+      // instead of deleting, mark as inactive
+      const res = await setUserActive(deleteTarget.id, false);
+      const updated = res?.data?.user;
+      if (updated) {
+        setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, is_active: updated.is_active } : u));
+      }
+    } catch (e) {
+      console.error('Failed to deactivate user', e.message);
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   /* ── Create admin ── */
   const handleCreateAdmin = async (data) => {
-    // TODO: call createAdmin(data) API
-    await new Promise(r => setTimeout(r, 700));
-    const newAdmin = { id: Date.now(), ...data, region_id: null, country_id: null, is_active: true, teams: 0, created_at: new Date().toISOString().split('T')[0] };
-    setUsers(p => [newAdmin, ...p]);
+    try {
+      const res = await registerUser({ ...data });
+      const created = res?.data?.user;
+      if (created) {
+        // Add minimal fields expected by table
+        const newAdmin = { id: created.id, username: created.username, email: created.email, region_id: created.region_id, country_id: created.country_id, is_admin: created.is_admin, is_active: created.is_active, teams: 0, created_at: created.created_at };
+        setUsers(p => [newAdmin, ...p]);
+      }
+    } catch (e) {
+      console.error('Failed create admin', e.message);
+      throw e;
+    }
   };
+
+  /* ── Load users on mount ── */
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await getUsers();
+        const list = res?.data?.users || [];
+        if (mounted) setUsers(list.map(u => ({ ...u, teams: u.teams ?? 0 })));
+      } catch (e) {
+        console.error('Failed to load users', e.message);
+        setUsers(MOCK_USERS);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const selStyle = {
     background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)',
@@ -232,7 +266,7 @@ export default function AdminPanel({ onPreviewAsUser }) {
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-pk-blue)'; e.currentTarget.style.color = 'var(--color-pk-blue)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-pk-border-light)'; e.currentTarget.style.color = 'var(--color-pk-subtle)'; }}
           >
-            👁 Vista de usuario
+            <FaEye style={{ marginRight: 8 }} /> Vista de usuario
           </button>
           {/* Create admin */}
           <button
@@ -247,17 +281,17 @@ export default function AdminPanel({ onPreviewAsUser }) {
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.2)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; }}
           >
-            👑 Crear Admin
+            <FaCrown /> Crear Admin
           </button>
         </div>
       </div>
 
       {/* ── Stats ── */}
       <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '14px', marginBottom: '24px' }}>
-        <StatCard label="Usuarios totales" value={totalUsers}  icon="👥" color="var(--color-pk-blue)"   />
-        <StatCard label="Activos"          value={activeUsers} icon="✅" color="#22c55e"                />
-        <StatCard label="Admins"           value={adminCount}  icon="👑" color="var(--color-pk-yellow)" />
-        <StatCard label="Equipos creados"  value={totalTeams}  icon="⚔️" color="var(--color-pk-red)"    />
+        <StatCard label="Usuarios totales" value={totalUsers}  icon={<FaUsers />} color="var(--color-pk-blue)"   />
+        <StatCard label="Activos"          value={activeUsers} icon={<FaCheckCircle />} color="#22c55e"                />
+        <StatCard label="Admins"           value={adminCount}  icon={<FaCrown />} color="var(--color-pk-yellow)" />
+        <StatCard label="Equipos creados"  value={totalTeams}  icon={<FaTrophy />} color="var(--color-pk-red)"    />
       </div>
 
       {/* ── Users table card ── */}
@@ -270,13 +304,16 @@ export default function AdminPanel({ onPreviewAsUser }) {
 
         {/* Filters bar */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="🔍 Buscar usuario o email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ ...selStyle, flex: '1 1 200px', padding: '9px 13px', fontSize: '13px', borderRadius: '10px' }}
-          />
+          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <input
+              type="text"
+              placeholder="Buscar usuario o email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...selStyle, width: '100%', padding: '9px 13px 9px 36px', fontSize: '13px', borderRadius: '10px' }}
+            />
+            <FaSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-pk-muted)' }} />
+          </div>
           <select value={filterReg}  onChange={e => setFilterReg(e.target.value)}  style={selStyle}>
             <option value="">Todas las regiones</option>
             {REGIONS.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -377,7 +414,7 @@ export default function AdminPanel({ onPreviewAsUser }) {
                       color:      u.is_admin ? 'var(--color-pk-yellow)' : 'var(--color-pk-blue)',
                       borderRadius: '20px', padding: '3px 10px', whiteSpace: 'nowrap',
                     }}>
-                      {u.is_admin ? '👑 Admin' : '👤 Usuario'}
+                      {u.is_admin ? (<><FaCrown style={{ marginRight: 6 }} /> Admin</>) : (<><FaUser style={{ marginRight: 6 }} /> Usuario</>)}
                     </span>
                   </td>
                   {/* Created */}
@@ -399,7 +436,7 @@ export default function AdminPanel({ onPreviewAsUser }) {
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#fca5a5'; }}
                       >
-                        🗑 Eliminar
+                        <FaTrash style={{ marginRight: 8 }} /> Eliminar
                       </button>
                     ) : (
                       <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>—</span>
@@ -423,7 +460,7 @@ export default function AdminPanel({ onPreviewAsUser }) {
               Esta acción <strong>no se puede deshacer</strong> y eliminará también todos sus equipos ({deleteTarget.teams}).
             </>
           }
-          confirmLabel={`🗑 Eliminar a ${deleteTarget.username}`}
+          confirmLabel={<><FaTrash style={{ marginRight: 8 }} />Eliminar a {deleteTarget.username}</>}
           requireTyping={deleteTarget.username}
           requirePassword={true}
           onConfirm={handleDelete}

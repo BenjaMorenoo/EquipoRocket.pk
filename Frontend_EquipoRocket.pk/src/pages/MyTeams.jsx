@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getTeams, deleteTeam as apiDeleteTeam } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
+import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle } from 'react-icons/fa';
 
 // Mock data while backend is not connected
 const MOCK_TEAMS = [
@@ -120,9 +121,9 @@ function TeamCard({ team, onEdit, onDelete }) {
           <button
             className="pk-btn pk-btn-secondary"
             onClick={() => onEdit(team)}
-            style={{ padding: '6px 14px', fontSize: '12px' }}
+            style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            ✏️ Editar
+            <FaEdit /> Editar
           </button>
           <button
             onClick={() => onDelete(team.id)}
@@ -147,7 +148,7 @@ function TeamCard({ team, onEdit, onDelete }) {
               e.currentTarget.style.background = 'none';
             }}
           >
-            🗑️
+            <FaTrash />
           </button>
         </div>
       </div>
@@ -181,7 +182,7 @@ function TeamCard({ team, onEdit, onDelete }) {
                     style={{ width: '44px', height: '44px', objectFit: 'contain' }}
                   />
                 ) : (
-                  <span style={{ fontSize: '18px' }}>❓</span>
+                  <FaQuestionCircle style={{ fontSize: 20, color: 'var(--color-pk-muted)' }} />
                 )
               ) : (
                 <span style={{ fontSize: '14px', color: 'var(--color-pk-muted)' }}>—</span>
@@ -277,7 +278,7 @@ export default function MyTeams({ onNavigateToBuilder }) {
           borderRadius: '20px',
           color: 'var(--color-pk-muted)',
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎴</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}><FaRegImages /></div>
           <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', margin: '0 0 8px', letterSpacing: '0.06em' }}>
             No tienes equipos aún
           </h3>

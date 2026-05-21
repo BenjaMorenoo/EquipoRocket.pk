@@ -113,6 +113,17 @@ export const getCurrentUser = async () => {
   return data;
 };
 
+// Admin: list users and toggle active state
+export const getUsers = async () => {
+  const { data } = await backendAPI.get('/auth/users');
+  return data;
+};
+
+export const setUserActive = async (id, active) => {
+  const { data } = await backendAPI.patch(`/auth/users/${id}/active`, { active });
+  return data;
+};
+
 // ── ms_pokemon endpoints (DB-backed Pokédex)
 const msPokemonAPI = axios.create({
   baseURL: import.meta.env.VITE_MS_POKEMON_URL || 'http://localhost:3002/api',

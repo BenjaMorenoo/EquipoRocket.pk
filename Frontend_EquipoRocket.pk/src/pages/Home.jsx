@@ -3,6 +3,7 @@
 // Muestra estadísticas globales: Pokémon y equipos más usados.
 
 import { useState, useEffect } from 'react';
+import { FaDatabase, FaLayerGroup, FaUser, FaChartBar, FaFire, FaPlus, FaUserPlus, FaGamepad } from 'react-icons/fa';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell,
@@ -32,10 +33,10 @@ const MOCK_TOP_TEAMS = [
 ];
 
 const MOCK_STATS = [
-  { label: 'Pokémon registrados', value: '1,025', icon: '🔴' },
-  { label: 'Equipos creados',     value: '8,432', icon: '⚔️' },
-  { label: 'Entrenadores',        value: '2,891', icon: '🧢' },
-  { label: 'Partidas analizadas', value: '14.2K', icon: '📊' },
+  { label: 'Pokémon registrados', value: '1,025', icon: <FaDatabase /> },
+  { label: 'Equipos creados',     value: '8,432', icon: <FaLayerGroup /> },
+  { label: 'Entrenadores',        value: '2,891', icon: <FaUser /> },
+  { label: 'Partidas analizadas', value: '14.2K', icon: <FaChartBar /> },
 ];
 
 const TYPE_COLORS = {
@@ -171,12 +172,12 @@ export default function Home({ onNavigate }) {
         </p>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('builder')} style={{ padding: '13px 28px', fontSize: '15px' }}>
-            ⚔️ Crear equipo ahora
+          <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('builder')} style={{ padding: '13px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FaPlus /> Crear equipo ahora
           </button>
           {!user && (
-            <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate('auth')} style={{ padding: '13px 28px', fontSize: '15px' }}>
-              ✨ Registrarse gratis
+            <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate('auth')} style={{ padding: '13px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FaUserPlus /> Registrarse gratis
             </button>
           )}
         </div>
@@ -209,7 +210,7 @@ export default function Home({ onNavigate }) {
         <div className="fade-up fade-up-3">
           <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
-              🔥 Pokémon <span style={{ color: 'var(--color-pk-red)' }}>más usados</span>
+              <FaFire style={{ marginRight: 8 }} /> Pokémon <span style={{ color: 'var(--color-pk-red)' }}>más usados</span>
             </h2>
             <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>VGC 2026 — Temporada activa</span>
           </div>
@@ -291,7 +292,7 @@ export default function Home({ onNavigate }) {
               border: '1px solid var(--color-pk-border-light)',
               borderRadius: '14px', padding: '20px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: '28px', marginBottom: '8px' }}>🎮</div>
+              <div style={{ fontSize: 28, marginBottom: '8px' }}><FaGamepad /></div>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 8px' }}>
                 ¿Listo para competir?
               </h3>
@@ -299,7 +300,7 @@ export default function Home({ onNavigate }) {
                 Regístrate para guardar tus equipos y exportarlos en formato Showdown.
               </p>
               <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('auth')} style={{ width: '100%', justifyContent: 'center', padding: '11px' }}>
-                ✨ Crear cuenta gratis
+                <FaUserPlus /> Crear cuenta gratis
               </button>
             </div>
           )}

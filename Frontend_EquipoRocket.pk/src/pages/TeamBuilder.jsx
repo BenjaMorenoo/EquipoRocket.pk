@@ -8,6 +8,7 @@ import TypeBadge             from '../components/TypeBadge';
 import { useAuth }           from '../context/AuthContext';
 import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
+import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
 
 const TEAM_SIZE = 6;
 const FORMATS   = ['OU','Ubers','UU','RU','NU','PU','VGC','BSS','Doubles'];
@@ -75,7 +76,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
       {/* Saved toast */}
       {saved && (
         <div style={{ position:'fixed', top:'80px', right:'24px', zIndex:50, background:'rgba(34,197,94,0.12)', border:'1px solid rgba(34,197,94,0.3)', borderRadius:'10px', padding:'12px 18px', color:'#4ade80', fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'13px', letterSpacing:'0.06em', animation:'fadeIn .2s ease' }}>
-          ✅ Equipo guardado correctamente
+          <FaCheck style={{ marginRight: 8 }} /> Equipo guardado correctamente
           <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
         </div>
       )}
@@ -97,7 +98,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
 
           <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
             {/* Export Showdown */}
-            <button
+              <button
               onClick={handleExport}
               disabled={filledCount === 0}
               style={{
@@ -111,12 +112,12 @@ export default function TeamBuilder({ onSave, onNavigate }) {
               onMouseEnter={e => { if (filledCount > 0) { e.currentTarget.style.background='rgba(59,130,246,0.15)'; }}}
               onMouseLeave={e => { e.currentTarget.style.background='rgba(59,130,246,0.08)'; }}
               title={user ? 'Descargar en formato Showdown' : 'Inicia sesión para exportar'}
-            >
-              📄 {user ? 'Exportar Showdown' : 'Exportar (requiere sesión)'}
+              >
+              <FaFileAlt style={{ marginRight: 8 }} /> {user ? 'Exportar Showdown' : 'Exportar (requiere sesión)'}
             </button>
 
-            <button className="pk-btn pk-btn-secondary" onClick={() => { if (window.confirm('¿Limpiar el equipo?')) { setTeam(Array(TEAM_SIZE).fill(null)); setSelectedPk(null); }}} style={{ fontSize:'13px', padding:'9px 16px' }}>
-              🗑️ Limpiar
+            <button className="pk-btn pk-btn-secondary" onClick={() => { if (window.confirm('¿Limpiar el equipo?')) { setTeam(Array(TEAM_SIZE).fill(null)); setSelectedPk(null); }}} style={{ fontSize:'13px', padding:'9px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FaTrash /> Limpiar
             </button>
 
             <button
@@ -125,7 +126,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
               disabled={saving || filledCount === 0}
               style={{ fontSize:'14px', padding:'9px 22px', opacity: (saving || filledCount === 0) ? .7 : 1 }}
             >
-              {saved ? '✓ Guardado!' : saving ? 'Guardando...' : user ? '💾 Guardar' : '💾 Guardar (requiere sesión)'}
+              {saved ? '✓ Guardado!' : saving ? 'Guardando...' : user ? (<><FaSave /> Guardar</>) : (<><FaSave /> Guardar (requiere sesión)</>)}
             </button>
           </div>
         </div>
@@ -207,7 +208,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
 
           <div className="pk-card" style={{ padding:'20px' }}>
             <h3 style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'14px', letterSpacing:'0.08em', textTransform:'uppercase', margin:'0 0 14px', display:'flex', alignItems:'center', gap:'8px' }}>
-              <span style={{ color:'var(--color-pk-red)' }}>📊</span> Análisis del Equipo
+              <FaChartBar style={{ color:'var(--color-pk-red)' }} /> Análisis del Equipo
             </h3>
             <div style={{ display:'flex', gap:'4px', marginBottom:'16px' }}>
               {[{ id:'weakness', label:'Debilidades' },{ id:'coverage', label:'Cobertura' }].map(tab => (
