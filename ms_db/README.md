@@ -127,4 +127,7 @@ Archivo de esquema
 - El archivo del esquema está en [ms_db/schema.sql](schema.sql).
 
 
+Comando para iniciar la DB por primera vez e insertar un admin por defecto
+- docker compose exec ms_db npm run init-db
+
 

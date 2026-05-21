@@ -82,6 +82,54 @@ async function applySchema() {
   }
 }
 
+async function ensureDefaultAdminOnCreate(createdFlag) {
+  if (!createdFlag) return { skipped: true, reason: 'db_not_created' };
+
+  const client = new Client({
+    host: process.env.PGHOST || 'localhost',
+    port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || undefined,
+    database: TARGET_DB,
+  });
+
+  await client.connect();
+  try {
+    const ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || 'admin@equiporocket.cl';
+    const ADMIN_USERNAME = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
+    const ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!';
+
+    // If any admin already exists, skip
+    const admins = await client.query('SELECT id FROM users WHERE is_admin = true LIMIT 1');
+    if (admins.rowCount > 0) return { skipped: true, reason: 'admin_exists' };
+
+    // If a user with ADMIN_EMAIL exists, promote them
+    const existing = await client.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [ADMIN_EMAIL]);
+
+    // dynamic import to avoid adding require at top
+    const bcryptMod = await import('bcryptjs');
+    const bcrypt = bcryptMod && bcryptMod.default ? bcryptMod.default : bcryptMod;
+    const rounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
+    // bcryptjs does not expose a Promise-based hash in all builds, use sync to be safe
+    const hash = bcrypt.hashSync(ADMIN_PASSWORD, rounds);
+
+    if (existing.rowCount > 0) {
+      await client.query('UPDATE users SET is_admin = true WHERE email = $1', [ADMIN_EMAIL]);
+      return { promoted: true };
+    }
+
+    await client.query(
+      `INSERT INTO users (username, email, password_hash, region_id, country_id, fecha_nac, is_admin)
+       VALUES ($1,$2,$3,$4,$5,$6,true)`,
+      [ADMIN_USERNAME, ADMIN_EMAIL, hash, 1, 1, '2000-01-01']
+    );
+
+    return { created: true };
+  } finally {
+    await client.end();
+  }
+}
+
 app.post('/init', async (req, res) => {
   try {
     const result = await createDatabaseIfNotExists();
@@ -89,6 +137,13 @@ app.post('/init', async (req, res) => {
     // son idempotentes (ON CONFLICT DO NOTHING), por lo que es seguro ejecutarlas
     // aunque la base de datos ya exista.
     await applySchema();
+    // If DB was just created, ensure default admin exists
+    try {
+      const adminRes = await ensureDefaultAdminOnCreate(result.created);
+      console.log('ensureDefaultAdminOnCreate:', adminRes);
+    } catch (e) {
+      console.warn('ensureDefaultAdminOnCreate failed:', e && e.message ? e.message : e);
+    }
     return res.status(200).json({ message: result.message, schema: 'applied' });
   } catch (err) {
     console.error(err);
@@ -108,6 +163,12 @@ if (process.argv[2] === 'init') {
       console.log(result.message);
       // Aplicar esquema siempre: las sentencias son idempotentes
       await applySchema();
+      try {
+        const adminRes = await ensureDefaultAdminOnCreate(result.created);
+        console.log('ensureDefaultAdminOnCreate:', adminRes);
+      } catch (e) {
+        console.warn('ensureDefaultAdminOnCreate failed:', e && e.message ? e.message : e);
+      }
       console.log('Schema applied');
       process.exit(0);
     } catch (err) {
