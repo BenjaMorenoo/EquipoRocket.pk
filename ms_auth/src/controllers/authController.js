@@ -157,3 +157,30 @@ export const me = async (req, res) => {
     return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
   }
 };
+
+export const updateMe = async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    if (!m) return res.status(401).json({ success:false, error: 'NO_TOKEN' });
+    const token = m[1];
+    let payload;
+    try { payload = jwt.verify(token, JWT_SECRET); } catch (e) { return res.status(401).json({ success:false, error: 'INVALID_TOKEN' }); }
+
+    const userId = payload.sub;
+    if (!userId) return res.status(400).json({ success:false, error: 'NO_SUBJECT' });
+
+    const { username, email, region_id, country_id, fecha_nac } = req.body || {};
+    // basic validation
+    if (!username || !email) return res.status(400).json({ success:false, error: 'INVALID_PAYLOAD' });
+
+    const userModel = await import('../models/userModel.js');
+    const updated = await userModel.updateUserProfile(userId, { username, email, region_id, country_id, fecha_nac });
+    if (!updated) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+    return res.json({ success:true, data: { user: updated } });
+  } catch (e) {
+    console.error('[ms_auth] Error en updateMe:', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};

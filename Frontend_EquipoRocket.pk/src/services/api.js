@@ -113,6 +113,11 @@ export const getCurrentUser = async () => {
   return data;
 };
 
+export const updateCurrentUser = async (payload) => {
+  const { data } = await backendAPI.patch('/auth/me', payload);
+  return data;
+};
+
 // Admin: list users and toggle active state
 export const getUsers = async () => {
   const { data } = await backendAPI.get('/auth/users');

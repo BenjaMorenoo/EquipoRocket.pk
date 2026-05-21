@@ -1,5 +1,6 @@
 // src/pages/UserProfile.jsx
 import { useState } from 'react';
+import { updateCurrentUser } from '../services/api';
 import { FaLock, FaEdit, FaTimes, FaEye, FaEyeSlash, FaUnlock, FaSave, FaGlobe, FaMapMarkerAlt, FaBirthdayCake, FaCalendarAlt, FaCheck, FaExclamationTriangle, FaLayerGroup, FaPlus } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { validators } from '../utils/validators';
@@ -263,12 +264,27 @@ export default function UserProfile({ onNavigate }) {
   if (!user) return null;
 
   const handleSave = async (updated) => {
-    // TODO: call updateUser API
-    await new Promise(r => setTimeout(r, 700));
-    login(updated);          // update session
-    setEditOpen(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      const payload = {
+        username: updated.username,
+        email: updated.email,
+        region_id: updated.region_id,
+        country_id: updated.country_id,
+        fecha_nac: updated.fecha_nac,
+      };
+      const res = await updateCurrentUser(payload);
+      const newUser = res?.data?.user;
+      if (newUser) {
+        login(newUser);
+        setEditOpen(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        throw new Error('No se recibió usuario actualizado');
+      }
+    } catch (e) {
+      throw e;
+    }
   };
 
   const initials = user.username?.slice(0,2).toUpperCase() ?? 'PK';

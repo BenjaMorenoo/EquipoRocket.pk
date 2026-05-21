@@ -1,6 +1,6 @@
 // src/routes/authRoutes.js
 import { Router } from 'express';
-import { register, login, me, listUsers, setUserActive } from '../controllers/authController.js';
+import { register, login, me, updateMe, listUsers, setUserActive } from '../controllers/authController.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 
 const router = Router();
@@ -9,6 +9,7 @@ const router = Router();
 router.post('/register', register);
 router.post('/login', login);
 router.get('/me', me);
+router.patch('/me', updateMe);
 
 // Admin-only
 router.get('/users', requireAdmin, listUsers);

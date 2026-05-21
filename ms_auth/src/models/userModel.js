@@ -48,3 +48,11 @@ export const setUserActive = async (id, active) => {
   const { rows } = await query(`UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id, username, email, region_id, country_id, fecha_nac, is_admin, is_active, created_at`, [active, id]);
   return rows[0] || null;
 };
+
+export const updateUserProfile = async (id, { username, email, region_id, country_id, fecha_nac }) => {
+  const { rows } = await query(
+    `UPDATE users SET username = $1, email = $2, region_id = $3, country_id = $4, fecha_nac = $5 WHERE id = $6 RETURNING id, username, email, region_id, country_id, fecha_nac, is_admin, is_active, created_at`,
+    [username.trim(), email.trim().toLowerCase(), region_id ?? null, country_id ?? null, fecha_nac ?? null, id]
+  );
+  return rows[0] || null;
+};
