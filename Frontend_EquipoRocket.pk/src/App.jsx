@@ -32,6 +32,15 @@ function AppShell() {
   const [previewMode,  setPreviewMode]  = useState(false);
   const [showAuth,     setShowAuth]     = useState(false); // modal de login/register
 
+  const navigate = (page) => {
+    if (page === 'auth')  { setShowAuth(true); return; }
+    if (page === 'admin' && (!user?.is_admin || previewMode)) return;
+    if (page === 'profile' && !user) { setShowAuth(true); return; }
+    if (page === 'teams'   && !user) { setShowAuth(true); return; }
+    setCurrentPage(page);
+    if (page !== 'builder') setEditingTeam(null);
+  };
+
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--color-pk-border)', borderTopColor:'var(--color-pk-red)', animation:'spin .8s linear infinite' }} />
@@ -43,15 +52,6 @@ function AppShell() {
   if (showAuth) return (
     <AuthPage onSuccess={() => setShowAuth(false)} onBack={() => setShowAuth(false)} onNavigate={navigate} />
   );
-
-  const navigate = (page) => {
-    if (page === 'auth')  { setShowAuth(true); return; }
-    if (page === 'admin' && (!user?.is_admin || previewMode)) return;
-    if (page === 'profile' && !user) { setShowAuth(true); return; }
-    if (page === 'teams'   && !user) { setShowAuth(true); return; }
-    setCurrentPage(page);
-    if (page !== 'builder') setEditingTeam(null);
-  };
 
   const handleSaveTeam = async (teamData) => {
     try {
