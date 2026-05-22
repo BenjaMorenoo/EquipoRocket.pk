@@ -29,7 +29,7 @@ class SimulateRequest(BaseModel):
     team_a_id: Optional[int] = None
     team_b_id: Optional[int] = None
     api_url: Optional[str] = None
-    iterations: int = 500
+    iterations: int = 1000
     sims: int = 500
 
 
