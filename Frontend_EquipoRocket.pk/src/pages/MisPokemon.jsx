@@ -161,7 +161,11 @@ export default function MisPokemon() {
             <div key={p.id} className="pk-card" style={{ padding: 12, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {/** sprite from PokeAPI loaded into sprites map */}
-                <img src={p.sprite || ''} alt={p.name} style={{ width: 64, height: 64, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                {p.sprite ? (
+                  <img src={p.sprite} alt={p.name} style={{ width: 64, height: 64, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                ) : (
+                  <div style={{ width: 64, height: 64 }} />
+                )}
               </div>
               <div style={{ fontWeight: 700, textTransform: 'capitalize', textAlign: 'center' }}>{p.name}</div>
 

@@ -112,13 +112,12 @@ function EmptySlot({ slotNumber, onClick }) {
 /* ── Filled Slot ─────────────────────────────────────────────────────────── */
 function FilledSlot({ pokemon, slotNumber, onRemove, onClick }) {
   const name   = pokemon.name;
-  const types  = pokemon.types;
+  const types  = pokemon.types || [];
   const stats  = pokemon.stats;
   const sprite = pokemon.sprites?.other?.['official-artwork']?.front_default
               || pokemon.sprites?.front_default;
   const id     = String(pokemon.id).padStart(3, '0');
-
-  const primaryType = types[0]?.type?.name || 'normal';
+  const primaryType = (types[0] && (types[0].type?.name || types[0].name)) || 'normal';
   const colors = {
     normal:   '#A8A878', fire: '#F08030', water: '#6890F0', electric: '#F8D030',
     grass: '#78C850', ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0',

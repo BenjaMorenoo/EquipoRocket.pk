@@ -170,3 +170,21 @@ export const getBackendPokemon = async (name) => {
   const { data } = await msPokemonAPI.get(`/pokemon/${encodeURIComponent(name)}`);
   return data;
 };
+
+// ── ms_asistencia (AI assistance) ───────────────────────────────────────────
+const msAsistenciaBase = import.meta.env.VITE_MS_ASISTENCIA_URL || 'http://localhost:8005';
+
+export const analyzeTeamAI = async (team) => {
+  const { data } = await axios.post(`${msAsistenciaBase}/analyze/team`, { team });
+  return data;
+};
+
+export const recommendTeammateAI = async (team, top_n = 6) => {
+  const { data } = await axios.post(`${msAsistenciaBase}/recommend/teammate`, { team, top_n });
+  return data;
+};
+
+export const recommendBuildAI = async (name) => {
+  const { data } = await axios.post(`${msAsistenciaBase}/recommend/build`, { name });
+  return data;
+};

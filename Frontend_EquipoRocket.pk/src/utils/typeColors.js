@@ -59,7 +59,8 @@ export const calculateTeamWeaknesses = (team) => {
 
   team.forEach((pokemon) => {
     if (!pokemon) return;
-    const types = pokemon.types.map((t) => t.type.name);
+    const rawTypes = pokemon.types || [];
+    const types = rawTypes.map((t) => (t?.type?.name || t?.name || String(t)).toLowerCase());
 
     ALL_TYPES.forEach((attackType) => {
       let mult = 1;
@@ -87,7 +88,8 @@ export const calculateOffensiveCoverage = (team) => {
 
   team.forEach((pokemon) => {
     if (!pokemon) return;
-    const types = pokemon.types.map((t) => t.type.name);
+    const rawTypes = pokemon.types || [];
+    const types = rawTypes.map((t) => (t?.type?.name || t?.name || String(t)).toLowerCase());
     types.forEach((atkType) => {
       ALL_TYPES.forEach((defType) => {
         const row = CHART[atkType] || {};

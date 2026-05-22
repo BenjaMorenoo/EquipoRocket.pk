@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  ms_asistencia:
+    build: .
+    image: ms_asistencia:latest
+    container_name: ms_asistencia
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: example
+      DB_NAME: equiporocketDb
+    ports:
+      - "8005:8005"
+    restart: unless-stopped
+    networks:
+      - equiporocket-net
+
+networks:
+  equiporocket-net:
+    external: true

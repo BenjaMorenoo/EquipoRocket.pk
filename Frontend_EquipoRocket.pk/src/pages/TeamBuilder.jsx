@@ -9,6 +9,7 @@ import { useAuth }           from '../context/AuthContext';
 import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
 import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
+import AssistedBuilderModal from '../components/AssistedBuilderModal';
 
 const TEAM_SIZE = 6;
 const FORMATS   = ['OU','Ubers','UU','RU','NU','PU','VGC','BSS','Doubles'];
@@ -26,6 +27,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const [saved,       setSaved]       = useState(false);
   const [activeTab,   setActiveTab]   = useState('weakness');
   const [authPrompt,  setAuthPrompt]  = useState(null); // null | 'guardar' | 'exportar'
+  const [assistOpen, setAssistOpen] = useState(false);
 
   const filledCount    = team.filter(Boolean).length;
   const totalBaseStats = team.filter(Boolean).reduce((a, pk) => a + (pk?.stats?.reduce((s, st) => s + st.base_stat, 0) || 0), 0);
@@ -97,6 +99,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
           </div>
 
           <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
+            <button className="pk-btn pk-btn-secondary" onClick={() => setAssistOpen(true)} style={{ fontSize:'13px', padding:'9px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>Constructor Asistido por IA</button>
             {/* Export Showdown */}
               <button
               onClick={handleExport}
@@ -232,6 +235,27 @@ export default function TeamBuilder({ onSave, onNavigate }) {
 
       {searchOpen && (
         <SearchModal onSelect={handleSelect} onClose={() => { setSearchOpen(false); setTargetSlot(null); }} selectedPokemon={team} />
+      )}
+      {assistOpen && (
+        <AssistedBuilderModal
+          open={assistOpen}
+          onClose={() => setAssistOpen(false)}
+          onApply={async (newTeam) => {
+            // Fetch full details for each name from backend before applying
+            const filled = await Promise.all(newTeam.slice(0,6).map(async (name) => {
+              try {
+                const res = await getBackendPokemon(name);
+                return res?.data?.pokemon || { name };
+              } catch (e) {
+                return { name };
+              }
+            }));
+            const arr = Array(6).fill(null);
+            filled.forEach((pk, idx) => { arr[idx] = pk; });
+            setTeam(arr);
+            setAssistOpen(false);
+          }}
+        />
       )}
 
       {authPrompt && (
