@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { FaDatabase, FaLayerGroup, FaUser, FaChartBar, FaFire, FaPlus, FaUserPlus, FaGamepad } from 'react-icons/fa';
+import { getBackendPokemons, getBackendPokemon, getPokemon as getPokeApiPokemon } from '../services/api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell,
@@ -12,18 +13,7 @@ import { useAuth }       from '../context/AuthContext';
 import TypeBadge         from '../components/TypeBadge';
 
 /* ── Mock data (reemplazar con llamadas al backend cuando esté listo) ────── */
-const MOCK_TOP_POKEMON = [
-  { name: 'garchomp',    usage: 38.4, types: ['dragon','ground'] },
-  { name: 'flutter-mane',usage: 35.1, types: ['ghost','fairy']   },
-  { name: 'landorus-therian', usage: 33.7, types: ['ground','flying'] },
-  { name: 'iron-hands',  usage: 31.2, types: ['fighting','electric'] },
-  { name: 'kingambit',   usage: 28.9, types: ['dark','steel']    },
-  { name: 'incineroar',  usage: 27.4, types: ['fire','dark']     },
-  { name: 'tornadus',    usage: 24.6, types: ['flying']          },
-  { name: 'rillaboom',   usage: 22.1, types: ['grass']           },
-  { name: 'urshifu-single-strike', usage: 20.8, types: ['fighting','dark'] },
-  { name: 'calyrex-shadow', usage: 19.3, types: ['psychic','ghost'] },
-];
+// will be loaded from backend (ms_pokemon)
 
 const MOCK_TOP_TEAMS = [
   { id: 1, name: 'Hyper Offense VGC',    format: 'VGC',  uses: 412,  pokemon: ['garchomp','flutter-mane','iron-hands','incineroar','rillaboom','tornadus'] },
@@ -51,10 +41,18 @@ function PokemonUsageCard({ pokemon, rank }) {
   const [sprite, setSprite] = useState(null);
 
   useEffect(() => {
-    fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon.name}`)
-      .then(r => r.json())
-      .then(d => setSprite(d.sprites?.other?.['official-artwork']?.front_default || d.sprites?.front_default))
-      .catch(() => {});
+    // load sprite from public PokeAPI only (DB provides metadata)
+    let mounted = true;
+    (async () => {
+      try {
+        const d = await getPokeApiPokemon(pokemon.name);
+        if (!mounted) return;
+        setSprite(d.sprites?.other?.['official-artwork']?.front_default || d.sprites?.front_default || null);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
   }, [pokemon.name]);
 
   const color = getBarColor(pokemon.types);
@@ -104,7 +102,10 @@ function PokemonUsageCard({ pokemon, rank }) {
           {pokemon.name.replace(/-/g, ' ')}
         </div>
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-          {pokemon.types.map(t => <TypeBadge key={t} type={t} size="xs" />)}
+        {Array.isArray(pokemon.types) && pokemon.types.map(t => {
+          const tn = typeof t === 'string' ? t : (t.type?.name || t.name);
+          return <TypeBadge key={tn} type={tn} size="xs" />;
+        })}
         </div>
       </div>
 
@@ -135,7 +136,28 @@ const CustomTooltip = ({ active, payload }) => {
 /* ── Main Page ──────────────────────────────────────────────────────────── */
 export default function Home({ onNavigate }) {
   const { user } = useAuth();
+  const [topPokemons, setTopPokemons] = useState([]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const listRes = await getBackendPokemons(12, 0);
+        const list = listRes.data?.pokemons || [];
+        const details = await Promise.all(list.map(p => getBackendPokemon(p.name).then(r => r.data?.pokemon).catch(() => null)));
+        if (!mounted) return;
+        const enriched = details.filter(Boolean).map(p => {
+          const total = (p.hp||0)+(p.attack||0)+(p.defense||0)+(p.sp_attack||0)+(p.sp_defense||0)+(p.speed||0);
+          const usage = Math.min(45, Math.round(total / 30));
+          return { ...p, usage };
+        });
+        setTopPokemons(enriched);
+      } catch (e) {
+        console.warn('Failed to load backend pokemons', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px 80px' }}>
 
@@ -219,13 +241,13 @@ export default function Home({ onNavigate }) {
           <div className="pk-card" style={{ padding: '16px', marginBottom: '16px' }}>
             <div style={{ width: '100%', height: '200px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MOCK_TOP_POKEMON} layout="vertical" margin={{ top: 0, right: 40, left: 80, bottom: 0 }}>
+                <BarChart data={topPokemons} layout="vertical" margin={{ top: 0, right: 40, left: 80, bottom: 0 }}>
                   <XAxis type="number" domain={[0, 45]} tick={{ fill: 'var(--color-pk-muted)', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
                   <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-pk-subtle)', fontSize: 11, fontFamily: 'var(--font-body)' }} tickLine={false} axisLine={false} tickFormatter={n => n.replace(/-/g,' ').split(' ').map(w => w[0]?.toUpperCase()+w.slice(1)).join(' ')} width={78} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                   <Bar dataKey="usage" radius={[0, 4, 4, 0]} barSize={14}>
-                    {MOCK_TOP_POKEMON.map((p) => (
-                      <Cell key={p.name} fill={getBarColor(p.types)} opacity={0.85} />
+                    {topPokemons.map((p) => (
+                      <Cell key={p.name} fill={getBarColor(p.types?.map(t => (typeof t==='string'?t:(t.type?.name||t.name))))} opacity={0.85} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -235,7 +257,7 @@ export default function Home({ onNavigate }) {
 
           {/* List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {MOCK_TOP_POKEMON.slice(0, 6).map((pk, i) => (
+            {topPokemons.slice(0, 6).map((pk, i) => (
               <PokemonUsageCard key={pk.name} pokemon={pk} rank={i + 1} />
             ))}
           </div>
@@ -315,12 +337,23 @@ function TeamSprites({ pokemon }) {
   const [sprites, setSprites] = useState({});
 
   useEffect(() => {
-    pokemon.forEach(name => {
-      fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
-        .then(r => r.json())
-        .then(d => setSprites(p => ({ ...p, [name]: d.sprites?.front_default })))
-        .catch(() => {});
-    });
+    let mounted = true;
+    (async () => {
+      try {
+        await Promise.all(pokemon.map(async (name) => {
+          try {
+            const d = await getPokeApiPokemon(name);
+            if (!mounted) return;
+            setSprites(p => ({ ...p, [name]: d.sprites?.front_default || null }));
+          } catch (e) {
+            // ignore
+          }
+        }));
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
   }, [pokemon]);
 
   return (
