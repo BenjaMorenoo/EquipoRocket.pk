@@ -1,10 +1,11 @@
 // src/pages/AuthPage.jsx
 import { useState } from 'react';
 import { FaLayerGroup, FaChartBar, FaTrophy, FaBolt, FaUserPlus } from 'react-icons/fa';
+import logo from '../assets/logo.png';
 import Login from './Login';
 import Register from './Register';
 
-export default function AuthPage() {
+export default function AuthPage({ onNavigate }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
 
   return (
@@ -52,31 +53,10 @@ export default function AuthPage() {
         }} />
 
         {/* Content */}
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '320px' }}>
+        <button onClick={() => onNavigate?.('home')} style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '320px', background:'none', border:'none', padding:0, cursor:'pointer', color:'inherit' }}>
 
           {/* Pokeball logo */}
-          <div style={{
-            width: '88px', height: '88px', borderRadius: '50%', margin: '0 auto 24px',
-            background: 'conic-gradient(var(--color-pk-red) 0deg 180deg, #e8e8e8 180deg 360deg)',
-            border: '4px solid rgba(255,255,255,0.12)',
-            position: 'relative',
-            boxShadow: '0 0 40px rgba(220,38,38,0.3)',
-          }}>
-            {/* Center line */}
-            <div style={{
-              position: 'absolute', top: 'calc(50% - 2px)', left: 0, right: 0,
-              height: '4px', background: '#1a1a2e',
-            }} />
-            {/* Center button */}
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '20px', height: '20px', borderRadius: '50%',
-              background: 'var(--color-pk-surface)',
-              border: '3px solid rgba(255,255,255,0.2)',
-              boxShadow: '0 0 12px rgba(220,38,38,0.4)',
-            }} />
-          </div>
+          <img src={logo} alt='EquipoRocket' style={{ width: '88px', height: '88px', margin: '0 auto 24px', filter: 'drop-shadow(0 0 40px rgba(220,38,38,0.3))' }} />
 
           <h1 style={{
             fontFamily: 'var(--font-heading)',
@@ -130,7 +110,7 @@ export default function AuthPage() {
               </span>
             </div>
           ))}
-        </div>
+        </button>
       </div>
 
       {/* ── Right panel: form ── */}
@@ -146,25 +126,29 @@ export default function AuthPage() {
         <div style={{ width: '100%', maxWidth: '420px' }}>
 
           {/* Mobile logo */}
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}
-            className="lg:hidden"
-          >
-            <div style={{
-              width: '52px', height: '52px', borderRadius: '50%', margin: '0 auto 12px',
-              background: 'conic-gradient(var(--color-pk-red) 0deg 180deg, #e8e8e8 180deg 360deg)',
-              border: '2px solid var(--color-pk-border)',
-              position: 'relative',
+          <div style={{ textAlign: 'center', marginBottom: '28px' }} className="lg:hidden">
+            <button onClick={() => onNavigate?.('home')} style={{
+              display:'inline-flex', alignItems:'center', flexDirection:'column', gap:'12px',
+              background:'none', border:'none', padding:0, cursor:'pointer', color:'inherit',
+              textAlign:'center', fontFamily:'inherit'
             }}>
               <div style={{
-                position: 'absolute', top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '12px', height: '12px', borderRadius: '50%',
-                background: 'var(--color-pk-surface)', border: '2px solid var(--color-pk-border)',
-              }} />
-            </div>
-            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.06em' }}>
-              Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>
-            </span>
+                width: '52px', height: '52px', borderRadius: '50%',
+                background: 'conic-gradient(var(--color-pk-red) 0deg 180deg, #e8e8e8 180deg 360deg)',
+                border: '2px solid var(--color-pk-border)',
+                position: 'relative',
+              }}>
+                <div style={{
+                  position: 'absolute', top: '50%', left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '12px', height: '12px', borderRadius: '50%',
+                  background: 'var(--color-pk-surface)', border: '2px solid var(--color-pk-border)',
+                }} />
+              </div>
+              <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '20px', letterSpacing: '0.06em' }}>
+                Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>
+              </span>
+            </button>
           </div>
 
           {/* Card */}

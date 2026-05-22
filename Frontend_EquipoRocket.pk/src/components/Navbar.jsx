@@ -1,10 +1,12 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
-import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown } from 'react-icons/fa';
+import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial } from 'react-icons/fa';
+import logo from '../assets/logo.png';
 
 const NAV_LINKS = [
   { id: 'teams',     label: 'Mis Equipos', icon: <FaLayerGroup /> },
   { id: 'mypokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
+  { id: 'sim',       label: 'Simulaciones', icon: <FaVial /> },
   { id: 'builder',   label: 'Constructor', icon: <FaWrench /> },
   { id: 'dex',       label: 'Pokédex',     icon: <FaBook /> },
   { id: 'ranking',   label: 'Rankings',    icon: <FaTrophy /> },
@@ -121,10 +123,8 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
       )}
       <nav style={{ position:'sticky', top:0, zIndex:40, background:'rgba(6,12,24,0.88)', backdropFilter:'blur(16px)', borderBottom:`1px solid ${isPreview ? 'rgba(59,130,246,0.2)' : 'var(--color-pk-border)'}` }}>
         <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 24px', height:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'20px' }}>
-          <button onClick={() => onNavigate('teams')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
-            <div style={{ width:'34px', height:'34px', borderRadius:'50%', background:'conic-gradient(var(--color-pk-red) 0deg 180deg,#e0e0e0 180deg 360deg)', border:'2px solid var(--color-pk-border-light)', position:'relative', flexShrink:0 }}>
-              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'9px', height:'9px', borderRadius:'50%', background:'var(--color-pk-surface)', border:'2px solid var(--color-pk-border-light)' }} />
-            </div>
+          <button onClick={() => onNavigate('home')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+            <img src={logo} alt='EquipoRocket' style={{ width:'34px', height:'34px', flexShrink:0 }} />
             <div style={{ lineHeight:1 }}>
               <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'17px', letterSpacing:'0.08em', color:'var(--color-pk-text)', textTransform:'uppercase' }}>Equipo<span style={{ color:'var(--color-pk-red)' }}>Rocket</span></div>
               <div style={{ fontSize:'8px', color:'var(--color-pk-muted)', letterSpacing:'0.2em', textTransform:'uppercase' }}>Pokémon Champions</div>
