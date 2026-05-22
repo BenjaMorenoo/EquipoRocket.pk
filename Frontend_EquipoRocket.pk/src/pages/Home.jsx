@@ -3,7 +3,7 @@
 // Muestra estadísticas globales: Pokémon y equipos más usados.
 
 import { useState, useEffect } from 'react';
-import { FaDatabase, FaLayerGroup, FaUser, FaChartBar, FaFire, FaPlus, FaUserPlus, FaGamepad } from 'react-icons/fa';
+import { FaDatabase, FaLayerGroup, FaUser, FaFire, FaPlus, FaUserPlus, FaGamepad } from 'react-icons/fa';
 import { getBackendPokemons, getBackendPokemon, getPokemon as getPokeApiPokemon } from '../services/api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -26,7 +26,6 @@ const MOCK_STATS = [
   { label: 'Pokémon registrados', value: '1,025', icon: <FaDatabase /> },
   { label: 'Equipos creados',     value: '8,432', icon: <FaLayerGroup /> },
   { label: 'Entrenadores',        value: '2,891', icon: <FaUser /> },
-  { label: 'Partidas analizadas', value: '14.2K', icon: <FaChartBar /> },
 ];
 
 const TYPE_COLORS = {
