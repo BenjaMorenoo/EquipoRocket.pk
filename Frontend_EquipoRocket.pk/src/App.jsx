@@ -9,6 +9,7 @@ import MyTeams      from './pages/MyTeams';
 import UserProfile  from './pages/UserProfile';
 import AdminPanel   from './pages/AdminPanel';
 import MisPokemon   from './pages/MisPokemon';
+import Simulations  from './pages/Simulations';
 import { createTeam } from './services/api';
 
 function PlaceholderPage({ title, icon, description }) {
@@ -85,6 +86,7 @@ function AppShell() {
         {currentPage === 'builder' && <TeamBuilder  initialTeam={editingTeam} onSave={handleSaveTeam} onNavigate={navigate} />}
         {currentPage === 'profile' && user && <UserProfile onNavigate={navigate} />}
         {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} />}
+        {currentPage === 'sim'     && user && <Simulations onNavigate={navigate} />}
         {currentPage === 'dex'     && <PlaceholderPage title="Pokédex"  icon="📖" description="Explora todos los Pokémon disponibles en Pokémon Champions." />}
         {currentPage === 'ranking' && <PlaceholderPage title="Rankings" icon="🏆" description="Los equipos más usados en la meta competitiva." />}
         {currentPage === 'mypokemon' && <MisPokemon onNavigate={navigate} />}

@@ -1,10 +1,11 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
-import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown } from 'react-icons/fa';
+import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial } from 'react-icons/fa';
 
 const NAV_LINKS = [
   { id: 'teams',     label: 'Mis Equipos', icon: <FaLayerGroup /> },
   { id: 'mypokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
+  { id: 'sim',       label: 'Simulaciones', icon: <FaVial /> },
   { id: 'builder',   label: 'Constructor', icon: <FaWrench /> },
   { id: 'dex',       label: 'Pokédex',     icon: <FaBook /> },
   { id: 'ranking',   label: 'Rankings',    icon: <FaTrophy /> },
