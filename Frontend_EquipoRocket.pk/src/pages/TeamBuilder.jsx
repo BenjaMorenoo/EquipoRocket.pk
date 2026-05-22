@@ -13,14 +13,12 @@ import AssistedBuilderModal from '../components/AssistedBuilderModal';
 import { getPokemon, getBackendPokemon } from '../services/api';
 
 const TEAM_SIZE = 6;
-const FORMATS   = ['OU','Ubers','UU','RU','NU','PU','VGC','BSS','Doubles'];
 
 export default function TeamBuilder({ onSave, onNavigate }) {
   const { user } = useAuth();
 
   const [team,        setTeam]        = useState(Array(TEAM_SIZE).fill(null));
   const [teamName,    setTeamName]    = useState('');
-  const [format,      setFormat]      = useState('OU');
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [targetSlot,  setTargetSlot]  = useState(null);
   const [selectedPk,  setSelectedPk]  = useState(null);
@@ -56,7 +54,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
     if (filledCount === 0) { alert('Tu equipo está vacío.'); return; }
     setSaving(true);
     try {
-      await onSave?.({ name: teamName, format, created_by: createdBy, pokemon: team.filter(Boolean).map(pk => ({ id: pk.id, name: pk.name, types: pk.types.map(t => t.type.name) })) });
+      await onSave?.({ name: teamName, created_by: createdBy, pokemon: team.filter(Boolean).map(pk => ({ id: pk.id, name: pk.name, types: pk.types.map(t => t.type.name) })) });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       alert('No se pudo guardar el equipo.');
@@ -67,7 +65,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const handleExport = () => {
     if (!user) { setAuthPrompt('exportar'); return; }
     if (filledCount === 0) { alert('Tu equipo está vacío.'); return; }
-    const content  = exportTeamToShowdown(team, { name: teamName || 'Mi Equipo', format });
+    const content  = exportTeamToShowdown(team, { name: teamName || 'Mi Equipo' });
     const filename = `${(teamName || 'equipo').replace(/\s+/g, '_').toLowerCase()}_showdown.txt`;
     downloadTxt(content, filename);
   };
@@ -144,12 +142,6 @@ export default function TeamBuilder({ onSave, onNavigate }) {
         <div style={{ flex:'1 1 240px', display:'flex', flexDirection:'column', gap:'4px' }}>
           <label style={{ fontSize:'10px', fontFamily:'var(--font-heading)', fontWeight:700, color:'var(--color-pk-muted)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Nombre del equipo</label>
           <input className="pk-input" type="text" placeholder="Ej: Dragon Storm..." value={teamName} onChange={e => setTeamName(e.target.value)} maxLength={50} style={{ padding:'9px 13px', fontSize:'14px' }} />
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
-          <label style={{ fontSize:'10px', fontFamily:'var(--font-heading)', fontWeight:700, color:'var(--color-pk-muted)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Formato</label>
-          <select className="pk-input" value={format} onChange={e => setFormat(e.target.value)} style={{ padding:'9px 13px', fontSize:'14px', cursor:'pointer' }}>
-            {FORMATS.map(f => <option key={f} value={f} style={{ background:'var(--color-pk-card)' }}>{f}</option>)}
-          </select>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:'4px', marginLeft:'auto' }}>
           <label style={{ fontSize:'10px', fontFamily:'var(--font-heading)', fontWeight:700, color:'var(--color-pk-muted)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Progreso</label>
