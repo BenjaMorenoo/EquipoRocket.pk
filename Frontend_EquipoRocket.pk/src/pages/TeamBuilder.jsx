@@ -26,6 +26,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const [selectedPk,  setSelectedPk]  = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
+  const [createdBy,   setCreatedBy]   = useState('manual');
   const [activeTab,   setActiveTab]   = useState('weakness');
   const [authPrompt,  setAuthPrompt]  = useState(null); // null | 'guardar' | 'exportar'
   const [assistOpen, setAssistOpen] = useState(false);
@@ -33,17 +34,19 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const filledCount    = team.filter(Boolean).length;
   const totalBaseStats = team.filter(Boolean).reduce((a, pk) => a + (pk?.stats?.reduce((s, st) => s + st.base_stat, 0) || 0), 0);
 
-  const openSearch = useCallback((i) => { setTargetSlot(i); setSearchOpen(true); }, []);
+  const openSearch = useCallback((i) => { setTargetSlot(i); setSearchOpen(true); setCreatedBy('manual'); }, []);
 
   const handleSelect = useCallback((pokemon) => {
     if (targetSlot === null) return;
     setTeam(prev => { const n = [...prev]; n[targetSlot] = pokemon; return n; });
     setSearchOpen(false); setTargetSlot(null); setSelectedPk(pokemon);
+    setCreatedBy('manual');
   }, [targetSlot]);
 
   const handleRemove = useCallback((i) => {
     setTeam(prev => { const n = [...prev]; n[i] = null; return n; });
     setSelectedPk(prev => prev?.name === team[i]?.name ? null : prev);
+    setCreatedBy('manual');
   }, [team]);
 
   /* ── Guardar (solo usuarios registrados) ── */
@@ -53,7 +56,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
     if (filledCount === 0) { alert('Tu equipo está vacío.'); return; }
     setSaving(true);
     try {
-      await onSave?.({ name: teamName, format, pokemon: team.filter(Boolean).map(pk => ({ id: pk.id, name: pk.name, types: pk.types.map(t => t.type.name) })) });
+      await onSave?.({ name: teamName, format, created_by: createdBy, pokemon: team.filter(Boolean).map(pk => ({ id: pk.id, name: pk.name, types: pk.types.map(t => t.type.name) })) });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       alert('No se pudo guardar el equipo.');
@@ -262,6 +265,7 @@ export default function TeamBuilder({ onSave, onNavigate }) {
             filled.forEach((pk, idx) => { arr[idx] = pk; });
             setTeam(arr);
             setAssistOpen(false);
+            setCreatedBy('ai');
           }}
         />
       )}

@@ -188,3 +188,10 @@ export const recommendBuildAI = async (name) => {
   const { data } = await axios.post(`${msAsistenciaBase}/recommend/build`, { name });
   return data;
 };
+
+// ── Montecarlo service
+const msMonteBase = import.meta.env.VITE_MS_MONTECARLO_URL || 'http://localhost:8010';
+export const simulateBattle = async (payload) => {
+  const { data } = await axios.post(`${msMonteBase}/simulate`, payload);
+  return data;
+};

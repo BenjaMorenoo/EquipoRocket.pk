@@ -107,6 +107,31 @@ function TeamCard({ team, onEdit, onDelete }) {
             }}>
               {team.format}
             </span>
+              {team.created_by === 'ai' ? (
+                <span style={{
+                  background: 'rgba(59,130,246,0.08)',
+                  border: '1px solid rgba(59,130,246,0.18)',
+                  color: 'var(--color-pk-blue)',
+                  borderRadius: '5px',
+                  padding: '2px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                }}>IA</span>
+              ) : (
+                <span style={{
+                  background: 'rgba(120,120,120,0.06)',
+                  border: '1px solid rgba(120,120,120,0.12)',
+                  color: 'var(--color-pk-muted)',
+                  borderRadius: '5px',
+                  padding: '2px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                }}>Manual</span>
+              )}
             <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>
               {new Date(team.createdAt).toLocaleDateString('es-CL')}
             </span>

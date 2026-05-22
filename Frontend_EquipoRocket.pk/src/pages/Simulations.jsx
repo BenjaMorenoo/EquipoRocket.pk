@@ -1,7 +1,7 @@
 // src/pages/Simulations.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTeams } from '../services/api';
+import { getTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
 import { FaPlay, FaVial, FaChartLine } from 'react-icons/fa';
 
 export default function Simulations({ onNavigate }) {
@@ -20,11 +20,16 @@ export default function Simulations({ onNavigate }) {
       try {
         if (user) {
           const teamsData = await getTeams();
-          // normalize response: accept either an array or an object with `teams` key
+          // normalize response: accept several backend shapes:
+          // - Array of teams
+          // - { teams: [...] }
+          // - { data: { teams: [...] } }
+          // - { data: [...] }
           let normalized = [];
           if (Array.isArray(teamsData)) normalized = teamsData;
-          else if (teamsData && Array.isArray(teamsData.teams)) normalized = teamsData.teams;
-          else if (teamsData && Array.isArray(teamsData.data)) normalized = teamsData.data;
+          else if (teamsData?.teams && Array.isArray(teamsData.teams)) normalized = teamsData.teams;
+          else if (teamsData?.data?.teams && Array.isArray(teamsData.data.teams)) normalized = teamsData.data.teams;
+          else if (teamsData?.data && Array.isArray(teamsData.data)) normalized = teamsData.data;
           else normalized = [];
           if (mounted) setTeams(normalized);
         }
@@ -46,24 +51,56 @@ export default function Simulations({ onNavigate }) {
 
     setSimulating(true);
     try {
-      // TODO: Llamar al backend de simulaciones cuando esté implementado
-      // const result = await simulateBattle(selectedTeam.id, opponentTeam.id);
-      
-      // Por ahora: simular resultado aleatorio
-      const winRate = Math.round(Math.random() * 100);
-      const result = {
-        winRate,
-        matchups: [],
-        summary: `Tu equipo tiene un ${winRate}% de probabilidad de ganar`
+      // Call montecarlo microservice
+      const payload = {
+        user_id: user?.id || null,
+        team: (selectedTeam.pokemon || []).map(p => p.name || p.pokemon?.name || p),
+        opponent: (opponentTeam.pokemon || []).map(p => p.name || p.pokemon?.name || p),
+        team_a_id: selectedTeam?.id || null,
+        team_b_id: opponentTeam?.id || null,
+        api_url: import.meta.env.VITE_MONTECARLO_API_URL || undefined,
+        iterations: 100,
+        sims: 500,
       };
-      
-      setSimulationResult(result);
+      const res = await simulateBattle(payload);
+      if (res?.success) {
+        // backend now returns win_rate as percentage (0-100) and top-level best_team
+        const r = res;
+        const pct = Math.round(r.win_rate || 0);
+        setSimulationResult({ winRate: pct, summary: `Win rate ${pct}%`, best_team: r.best_team });
+      } else {
+        throw new Error('Simulation failed');
+      }
     } catch (e) {
       console.error('Error simulando batalla', e.message);
       alert('Error al simular la batalla: ' + e.message);
     } finally {
       setSimulating(false);
     }
+  };
+
+  const enrichTeam = async (team) => {
+    if (!team) return null;
+    const pokemons = team.pokemon || [];
+    const enriched = await Promise.all(pokemons.map(async (p) => {
+      const name = p.name || p.id || p;
+      try {
+        // try backend first
+        const b = await getBackendPokemon(name);
+        if (b && (b.sprites || b.sprites?.front_default)) {
+          return { ...p, sprites: b.sprites || b };
+        }
+      } catch (e) {
+        // ignore and fallback to pokeapi
+      }
+      try {
+        const poke = await getPokemon(name);
+        return { ...p, sprites: poke?.sprites || null, types: poke?.types || [], stats: poke?.stats || [] };
+      } catch (e) {
+        return { ...p, sprites: null };
+      }
+    }));
+    return { ...team, pokemon: enriched };
   };
 
   if (!user) {
@@ -122,7 +159,10 @@ export default function Simulations({ onNavigate }) {
               {teams.map((team) => (
                 <button
                   key={team.id}
-                  onClick={() => setSelectedTeam(team)}
+                  onClick={async () => {
+                    const enriched = await enrichTeam(team);
+                    setSelectedTeam(enriched || team);
+                  }}
                   className={selectedTeam?.id === team.id ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'}
                   style={{
                     padding: 12,
@@ -135,16 +175,37 @@ export default function Simulations({ onNavigate }) {
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{team.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontWeight: 700 }}>{team.name}</div>
+                      {team.created_by === 'ai' ? (
+                        <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.18)', color: 'var(--color-pk-blue)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>IA</div>
+                      ) : (
+                        <div style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)', color: 'var(--color-pk-muted)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>Manual</div>
+                      )}
+                    </div>
                     <div style={{ fontSize: 12, opacity: 0.7 }}>
-                      {team.pokemons?.length || 0} Pokémon
+                      {team.pokemon?.length || 0} Pokémon
                     </div>
                   </div>
-                  {selectedTeam?.id === team.id && (
+                    {selectedTeam?.id === team.id && (
                     <div style={{ fontSize: 12, fontWeight: 700 }}>✓ SELECCIONADO</div>
                   )}
                 </button>
               ))}
+            </div>
+          )}
+          {selectedTeam && (
+            <div style={{ marginTop: 16, padding: 12, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)', borderRadius: 8 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{selectedTeam.name}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>Synergy: {selectedTeam.synergy_score ?? selectedTeam.synergy ?? '—'}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(selectedTeam.pokemon || []).map((p, i) => (
+                  <div key={i} style={{ width: 56, textAlign: 'center' }}>
+                    <img src={p.sprites?.front_default || p.sprites?.front_shiny || '/placeholder.png'} alt={p.name} style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                    <div style={{ fontSize: 11, marginTop: 4 }}>{p.name}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -162,10 +223,17 @@ export default function Simulations({ onNavigate }) {
               </label>
               <select
                 value={opponentTeam?.id || ''}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const teamId = e.target.value;
                   if (teamId) {
-                    setOpponentTeam({ id: teamId, name: `Equipo ${teamId}` });
+                    if (teamId === 'random') { setOpponentTeam({ id: 'random', name: 'Equipo Aleatorio' }); return; }
+                    const found = teams.find(t => String(t.id) === String(teamId));
+                    if (found) {
+                      const enriched = await enrichTeam(found);
+                      setOpponentTeam(enriched || found);
+                    } else {
+                      setOpponentTeam({ id: Number(teamId), name: `Equipo ${teamId}` });
+                    }
                   } else {
                     setOpponentTeam(null);
                   }
@@ -185,7 +253,7 @@ export default function Simulations({ onNavigate }) {
                 <option value="">-- Selecciona un equipo --</option>
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>
-                    {team.name} ({team.pokemons?.length || 0} Pokémon)
+                    {team.name} ({team.pokemon?.length || 0} Pokémon)
                   </option>
                 ))}
                 <option value="random">-- Equipo Aleatorio (próximamente) --</option>
@@ -203,7 +271,18 @@ export default function Simulations({ onNavigate }) {
                 }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>Equipo seleccionado:</div>
-                <div>{opponentTeam.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div>{opponentTeam.name}</div>
+                    <div style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.8 }}>Synergy: {opponentTeam.synergy_score ?? opponentTeam.synergy ?? '—'}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    {(opponentTeam.pokemon || []).map((p, i) => (
+                      <div key={i} style={{ width: 56, textAlign: 'center' }}>
+                        <img src={p.sprites?.front_default || p.sprites?.front_shiny || '/placeholder.png'} alt={p.name} style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                        <div style={{ fontSize: 11, marginTop: 4 }}>{p.name}</div>
+                      </div>
+                    ))}
+                  </div>
               </div>
             )}
           </div>
@@ -290,9 +369,41 @@ export default function Simulations({ onNavigate }) {
               {simulationResult.summary}
             </p>
           </div>
+          {/* Mejor configuración sugerida */}
+          {simulationResult.best_team && Array.isArray(simulationResult.best_team) && (
+            <div style={{ marginTop: 16, padding: 16, background: 'var(--color-pk-surface)', borderRadius: 8, border: '1px solid var(--color-pk-border)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Mejor configuración sugerida</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {simulationResult.best_team.map((p, idx) => {
+                  const name = p?.name || p?.pokemon || p?.display_name || `#${idx+1}`;
+                  const formatField = (v) => {
+                    if (!v) return null;
+                    if (typeof v === 'string') return v;
+                    if (Array.isArray(v)) return v.join(', ');
+                    if (typeof v === 'object') return v.ability || v.name || v.item || v.move || JSON.stringify(v);
+                    return String(v);
+                  };
+                  const item = formatField(p?.item);
+                  const ability = formatField(p?.ability);
+                  const moves = Array.isArray(p?.moves) ? p.moves.map(m => formatField(m)).filter(Boolean) : [];
+                  return (
+                    <div key={idx} style={{ width: 160, padding: 8, borderRadius: 8, background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.04)' }}>
+                      <div style={{ fontWeight: 700 }}>{name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-pk-muted)', marginTop: 6 }}>Item: {item || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-pk-muted)' }}>Ability: {ability || '—'}</div>
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>Moves</div>
+                        <div style={{ fontSize: 12 }}>{moves.join(', ') || '—'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Placeholder para detalles de matchups */}
-          <div style={{ fontSize: 13, color: 'var(--color-pk-muted)' }}>
+          <div style={{ fontSize: 13, color: 'var(--color-pk-muted)', marginTop: 12 }}>
             <strong>Análisis detallado:</strong> Los matchups específicos Pokémon vs Pokémon se mostrarán aquí cuando el motor esté implementado.
           </div>
         </div>

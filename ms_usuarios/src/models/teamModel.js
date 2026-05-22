@@ -1,10 +1,10 @@
 import { query, getClient } from '../config/db.js';
 
-export const createTeam = async ({ user_id, name, format_id }) => {
+export const createTeam = async ({ user_id, name, format_id, created_by = 'manual' }) => {
   const { rows } = await query(
     `INSERT INTO teams (user_id, name, format_id, created_by, created_at, updated_at)
-     VALUES ($1,$2,$3,'manual',NOW(),NOW()) RETURNING *`,
-    [user_id, name, format_id ?? null]
+     VALUES ($1,$2,$3,$4,NOW(),NOW()) RETURNING *`,
+    [user_id, name, format_id ?? null, created_by]
   );
   return rows[0];
 };
@@ -24,8 +24,11 @@ export const getTeamById = async (id) => {
 };
 
 export const updateTeam = async (id, payload) => {
-  const { name, format_id } = payload;
-  const { rows } = await query(`UPDATE teams SET name = COALESCE($2,name), format_id = $3, updated_at = NOW() WHERE id = $1 RETURNING *`, [id, name, format_id]);
+  const { name, format_id, synergy_score } = payload;
+  const { rows } = await query(
+    `UPDATE teams SET name = COALESCE($2,name), format_id = COALESCE($3, format_id), synergy_score = COALESCE($4, synergy_score), updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [id, name, format_id ?? null, synergy_score ?? null]
+  );
   return rows[0] || null;
 };
 

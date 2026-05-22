@@ -1,0 +1,20 @@
+services:
+  ms_montecarlo:
+    build: .
+    container_name: ms_montecarlo
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: equiporocketDb
+      PGUSER: postgres
+      PGPASSWORD: example
+      MONTECARLO_API_URL: http://ms_carga_api:8000/api/pool
+    networks:
+      - equiporocket-net
+
+networks:
+  equiporocket-net:
+    external: true

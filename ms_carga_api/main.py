@@ -361,6 +361,45 @@ def root():
     return { 'service':'ms_carga_api' }
 
 
+def _normalize_payload_for_pool(payload):
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        # common keys
+        for k in ("pokemon", "data", "results", "entries"):
+            if k in payload and isinstance(payload[k], list):
+                return payload[k]
+        # try to detect a candidate list inside dict values
+        for v in payload.values():
+            if isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
+                # prefer lists whose items have a 'name' key
+                if any('name' in (item or {}) for item in v):
+                    return v
+        # fallback: return the whole payload wrapped
+        return payload
+
+
+@app.get('/api/pool')
+def get_pool():
+    """Return the latest fetched external payload normalized as a list suitable for the montecarlo service.
+
+    This returns either a list of entries or the raw payload when no list-like structure is found.
+    """
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT payload FROM external_raw ORDER BY fetched_at DESC LIMIT 1")
+            row = cur.fetchone()
+            if not row:
+                return { 'data': [] }
+            payload = row[0]
+        conn.close()
+        normalized = _normalize_payload_for_pool(payload)
+        return normalized
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read pool from DB: {e}")
+
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run('main:app', host='0.0.0.0', port=int(os.getenv('PORT',8000)), reload=True)
