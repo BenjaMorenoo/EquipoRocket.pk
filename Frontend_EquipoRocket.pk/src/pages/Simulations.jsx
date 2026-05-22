@@ -20,7 +20,13 @@ export default function Simulations({ onNavigate }) {
       try {
         if (user) {
           const teamsData = await getTeams();
-          if (mounted) setTeams(teamsData || []);
+          // normalize response: accept either an array or an object with `teams` key
+          let normalized = [];
+          if (Array.isArray(teamsData)) normalized = teamsData;
+          else if (teamsData && Array.isArray(teamsData.teams)) normalized = teamsData.teams;
+          else if (teamsData && Array.isArray(teamsData.data)) normalized = teamsData.data;
+          else normalized = [];
+          if (mounted) setTeams(normalized);
         }
       } catch (e) {
         console.error('Error cargando equipos', e.message);

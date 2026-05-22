@@ -1,4 +1,5 @@
 // src/components/TypeCoverageChart.jsx
+import React, { useRef, useState, useEffect } from 'react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   Tooltip, ResponsiveContainer,
@@ -22,10 +23,24 @@ export function PokemonStatsRadar({ pokemon }) {
     fullMark: 255,
   }));
 
+  const ref = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setReady(el.clientWidth > 0 && el.clientHeight > 0);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div style={{ width: '100%', height: '200px' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+    <div ref={ref} style={{ width: '100%', height: '200px', minWidth: 0, minHeight: 0, boxSizing: 'border-box', display: 'block' }}>
+      {ready && (
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
           <PolarGrid stroke="var(--color-pk-border)" />
           <PolarAngleAxis dataKey="stat" tick={{ fill: 'var(--color-pk-subtle)', fontSize: 11, fontFamily: 'var(--font-body)' }} />
           <PolarRadiusAxis domain={[0, 255]} tick={false} axisLine={false} />
@@ -48,7 +63,8 @@ export function PokemonStatsRadar({ pokemon }) {
             formatter={(v) => [v, 'Base']}
           />
         </RadarChart>
-      </ResponsiveContainer>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
@@ -94,10 +110,24 @@ export function TeamWeaknessChart({ team }) {
     );
   };
 
+  const ref = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setReady(el.clientWidth > 0 && el.clientHeight > 0);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div style={{ width: '100%', height: '180px' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 20 }}>
+    <div ref={ref} style={{ width: '100%', height: '180px', minWidth: 0, minHeight: 0, boxSizing: 'border-box', display: 'block' }}>
+      {ready && (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 20 }}>
           <XAxis
             dataKey="type"
             tick={{ fill: 'var(--color-pk-subtle)', fontSize: 9, fontFamily: 'var(--font-body)' }}
@@ -133,8 +163,9 @@ export function TeamWeaknessChart({ team }) {
               <Cell key={entry.rawType} />
             ))}
           </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

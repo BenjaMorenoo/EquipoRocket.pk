@@ -10,6 +10,7 @@ import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
 import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
 import AssistedBuilderModal from '../components/AssistedBuilderModal';
+import { getPokemon, getBackendPokemon } from '../services/api';
 
 const TEAM_SIZE = 6;
 const FORMATS   = ['OU','Ubers','UU','RU','NU','PU','VGC','BSS','Doubles'];
@@ -189,21 +190,21 @@ export default function TeamBuilder({ onSave, onNavigate }) {
                 <div>
                   <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'18px', textTransform:'capitalize', letterSpacing:'0.04em' }}>{selectedPk.name}</div>
                   <div style={{ display:'flex', gap:'5px', marginTop:'4px' }}>
-                    {selectedPk.types.map(t => <TypeBadge key={t.type.name} type={t.type.name} size="sm" />)}
+                    {(selectedPk.types || []).map((t, idx) => <TypeBadge key={t?.type?.name || t?.name || idx} type={t?.type?.name || t?.name || ''} size="sm" />)}
                   </div>
                 </div>
               </div>
               <PokemonStatsRadar pokemon={selectedPk} />
               <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginTop:'8px' }}>
-                {selectedPk.stats.map(s => (
-                  <div key={s.stat.name} style={{ display:'flex', justifyContent:'space-between', fontSize:'12px' }}>
-                    <span style={{ color: STAT_COLORS[s.stat.name]||'var(--color-pk-subtle)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{STAT_LABELS[s.stat.name]||s.stat.name}</span>
-                    <span style={{ color:'var(--color-pk-text)', fontFamily:'var(--font-heading)', fontWeight:600 }}>{s.base_stat}</span>
+                {(selectedPk.stats || []).map((s, idx) => (
+                  <div key={s?.stat?.name || idx} style={{ display:'flex', justifyContent:'space-between', fontSize:'12px' }}>
+                    <span style={{ color: STAT_COLORS[s?.stat?.name]||'var(--color-pk-subtle)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{STAT_LABELS[s?.stat?.name]||s?.stat?.name}</span>
+                    <span style={{ color:'var(--color-pk-text)', fontFamily:'var(--font-heading)', fontWeight:600 }}>{s?.base_stat ?? '-'}</span>
                   </div>
                 ))}
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', borderTop:'1px solid var(--color-pk-border)', paddingTop:'6px', marginTop:'2px' }}>
                   <span style={{ color:'var(--color-pk-muted)', fontFamily:'var(--font-heading)', fontWeight:700 }}>BST</span>
-                  <span style={{ color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{selectedPk.stats.reduce((a,s) => a+s.base_stat,0)}</span>
+                  <span style={{ color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{(selectedPk.stats || []).reduce((a,s) => a + (s?.base_stat || 0), 0)}</span>
                 </div>
               </div>
             </div>
@@ -241,11 +242,18 @@ export default function TeamBuilder({ onSave, onNavigate }) {
           open={assistOpen}
           onClose={() => setAssistOpen(false)}
           onApply={async (newTeam) => {
-            // Fetch full details for each name from backend before applying
+            // Fetch full details for each name from backend and PokeAPI (for sprites) before applying
             const filled = await Promise.all(newTeam.slice(0,6).map(async (name) => {
               try {
-                const res = await getBackendPokemon(name);
-                return res?.data?.pokemon || { name };
+                const [resBackend, resApi] = await Promise.allSettled([getBackendPokemon(name), getPokemon(name.toLowerCase())]);
+                const backendPk = resBackend.status === 'fulfilled' ? (resBackend.value?.data?.pokemon || { name }) : { name };
+                const apiPk = resApi.status === 'fulfilled' ? resApi.value : null;
+                if (apiPk) {
+                  backendPk.sprites = apiPk.sprites;
+                  backendPk.types = apiPk.types;
+                  backendPk.stats = apiPk.stats || backendPk.stats;
+                }
+                return backendPk;
               } catch (e) {
                 return { name };
               }
