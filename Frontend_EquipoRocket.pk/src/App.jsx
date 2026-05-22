@@ -37,6 +37,7 @@ function AppShell() {
     if (page === 'admin' && (!user?.is_admin || previewMode)) return;
     if (page === 'profile' && !user) { setShowAuth(true); return; }
     if (page === 'teams'   && !user) { setShowAuth(true); return; }
+    setShowAuth(false);
     setCurrentPage(page);
     if (page !== 'builder') setEditingTeam(null);
   };
