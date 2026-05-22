@@ -41,7 +41,7 @@ function AppShell() {
 
   // Si showAuth está activo, mostrar página de auth
   if (showAuth) return (
-    <AuthPage onSuccess={() => setShowAuth(false)} onBack={() => setShowAuth(false)} />
+    <AuthPage onSuccess={() => setShowAuth(false)} onBack={() => setShowAuth(false)} onNavigate={navigate} />
   );
 
   const navigate = (page) => {

@@ -123,7 +123,7 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
       )}
       <nav style={{ position:'sticky', top:0, zIndex:40, background:'rgba(6,12,24,0.88)', backdropFilter:'blur(16px)', borderBottom:`1px solid ${isPreview ? 'rgba(59,130,246,0.2)' : 'var(--color-pk-border)'}` }}>
         <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 24px', height:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'20px' }}>
-          <button onClick={() => onNavigate('teams')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+          <button onClick={() => onNavigate('home')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
             <img src={logo} alt='EquipoRocket' style={{ width:'34px', height:'34px', flexShrink:0 }} />
             <div style={{ lineHeight:1 }}>
               <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'17px', letterSpacing:'0.08em', color:'var(--color-pk-text)', textTransform:'uppercase' }}>Equipo<span style={{ color:'var(--color-pk-red)' }}>Rocket</span></div>
