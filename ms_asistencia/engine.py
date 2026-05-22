@@ -146,6 +146,13 @@ class PokemonAnalyticsEngine:
             # choose candidate with highest score
             best = max(scores.items(), key=lambda x: x[1])[0]
             team.append(best)
+        # If still short, pad with remaining candidates (preserve order)
+        if len(team) < team_size:
+            for c in candidates:
+                if c not in team:
+                    team.append(c)
+                    if len(team) >= team_size:
+                        break
         return team
 
     def recommend_teams(self, seeds=None, top_k=3, team_size=6):

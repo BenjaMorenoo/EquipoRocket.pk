@@ -116,6 +116,15 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
           if (!choices.length) break;
           team.push(choices[0]);
         }
+        // ensure exactly 6 by padding from poolNames if needed
+        if (team.length < 6) {
+          for (const candidate of poolNames) {
+            if (!team.includes(candidate)) {
+              team.push(candidate);
+              if (team.length >= 6) break;
+            }
+          }
+        }
         candidateTeams.push(team);
         if (candidateTeams.length >= 3) break;
       }
