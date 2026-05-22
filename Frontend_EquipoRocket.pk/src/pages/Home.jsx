@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { useAuth }       from '../context/AuthContext';
 import TypeBadge         from '../components/TypeBadge';
+import logo from '../assets/logo.png';
 
 /* ── Mock data (reemplazar con llamadas al backend cuando esté listo) ────── */
 // will be loaded from backend (ms_pokemon)
@@ -166,6 +167,18 @@ export default function Home({ onNavigate }) {
         background: 'radial-gradient(ellipse at top, rgba(220,38,38,0.06) 0%, transparent 60%)',
         borderRadius: '20px', marginBottom: '40px',
       }}>
+        <div style={{ marginBottom: '8px' }}>
+          <img src={logo} alt="EquipoRocket" style={{ width: 'clamp(120px, 16vw, 260px)', height: 'auto', display: 'block', margin: '0 auto' }} />
+        </div>
+
+        <h1 style={{
+          fontFamily: 'var(--font-heading)', fontWeight: 700,
+          fontSize: 'clamp(26px, 4.5vw, 44px)', letterSpacing: '0.06em',
+          textTransform: 'uppercase', margin: '4px 0 10px', lineHeight: 1.05, color: 'var(--color-pk-text)'
+        }}>
+          Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>.pk
+        </h1>
+
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '8px',
           background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)',
@@ -175,22 +188,6 @@ export default function Home({ onNavigate }) {
         }}>
           ● Temporada 2026 en curso
         </div>
-
-        <h1 style={{
-          fontFamily: 'var(--font-heading)', fontWeight: 700,
-          fontSize: 'clamp(32px, 6vw, 64px)', letterSpacing: '0.06em',
-          textTransform: 'uppercase', margin: '0 0 16px', lineHeight: 1.05,
-        }}>
-          Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>.pk
-        </h1>
-
-        <p style={{
-          fontSize: 'clamp(14px, 2vw, 17px)', color: 'var(--color-pk-subtle)',
-          maxWidth: '520px', margin: '0 auto 32px', lineHeight: 1.6,
-        }}>
-          Construye, analiza y domina con tus equipos competitivos de <strong style={{ color: 'var(--color-pk-text)' }}>Pokémon Champions</strong>.
-          Sin registro, sin límites para explorar.
-        </p>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('builder')} style={{ padding: '13px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
