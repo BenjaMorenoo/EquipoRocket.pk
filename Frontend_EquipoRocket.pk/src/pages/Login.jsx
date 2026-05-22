@@ -67,12 +67,14 @@ export default function Login({ onGoRegister }) {
       const data = await loginUser(payload);
       login(data.user ?? data);
     } catch (err) {
-      // Backend not ready yet — show message
-      setApiErr(
-        err.message?.includes('Network') || err.message?.includes('connect')
-          ? 'El servidor de autenticación no está disponible aún. (Backend en desarrollo)'
-          : err.message || 'Credenciales incorrectas.'
-      );
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('invalid_credentials') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('usuario') || msg.toLowerCase().includes('correo')) {
+        setApiErr('Usuario no encontrado o contraseña incorrecta.');
+      } else if (msg.includes('Network') || msg.includes('connect') || msg.includes('fetch')) {
+        setApiErr('No se pudo conectar con el servicio de autenticación. Intenta de nuevo más tarde.');
+      } else {
+        setApiErr(msg || 'Usuario no encontrado o contraseña incorrecta.');
+      }
     } finally {
       setLoading(false);
     }

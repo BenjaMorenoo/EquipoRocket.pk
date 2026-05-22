@@ -200,18 +200,19 @@ export default function Register({ onGoLogin }) {
       login(data.user ?? { ...payload, id: 0, is_admin: false, is_active: true });
     } catch (err) {
       const msg = err.message || '';
-      if (msg.toLowerCase().includes('username') || msg.toLowerCase().includes('usuario')) {
+      if (msg.toLowerCase().includes('username_taken') || msg.toLowerCase().includes('usuario')) {
         setErrors({ username: 'Este nombre de usuario ya está en uso.' });
         setStep(0);
-      } else if (msg.toLowerCase().includes('email') || msg.toLowerCase().includes('correo')) {
+      } else if (msg.toLowerCase().includes('email_taken') || msg.toLowerCase().includes('correo')) {
         setErrors({ email: 'Este correo ya está registrado.' });
         setStep(0);
+      } else if (msg.toLowerCase().includes('username, email y password son requeridos')) {
+        setApiErr('Faltan datos obligatorios: usuario, correo o contraseña.');
+        setStep(0);
+      } else if (msg.includes('Network') || msg.includes('connect') || msg.includes('fetch')) {
+        setApiErr('No se pudo conectar con el servicio de autenticación. Intenta de nuevo más tarde.');
       } else {
-        setApiErr(
-          msg.includes('Network') || msg.includes('connect') || msg.includes('fetch')
-            ? 'El servidor de registro no está disponible aún. (Backend en desarrollo)'
-            : msg || 'Ocurrió un error al registrarte.'
-        );
+        setApiErr(msg || 'No fue posible registrar el usuario. Revisa los datos e intenta de nuevo.');
       }
     } finally {
       setLoading(false);

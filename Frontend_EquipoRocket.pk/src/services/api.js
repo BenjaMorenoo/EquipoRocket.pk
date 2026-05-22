@@ -50,7 +50,7 @@ backendAPI.interceptors.request.use((config) => {
 backendAPI.interceptors.response.use(
   (res) => res,
   (err) => {
-    const msg = err.response?.data?.message || err.message || 'Error desconocido';
+    const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Error desconocido';
     console.error('[API Error]', msg);
     return Promise.reject(new Error(msg));
   }
