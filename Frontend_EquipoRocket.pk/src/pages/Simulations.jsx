@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
+import { persistBestConfiguration } from '../services/api';
 import { FaPlay, FaVial, FaChartLine } from 'react-icons/fa';
 
 export default function Simulations({ onNavigate }) {
@@ -63,8 +64,9 @@ export default function Simulations({ onNavigate }) {
         sims: 500,
       };
       const res = await simulateBattle(payload);
-      if (res?.success) {
-        // backend now returns win_rate as percentage (0-100) and top-level best_team
+      console.debug('simulate response', res);
+      // Accept responses that explicitly include success=true or at least return win_rate
+      if (res && (res.success === true || typeof res.win_rate !== 'undefined')) {
         const r = res;
         const pct = Math.round(r.win_rate || 0);
         setSimulationResult({ winRate: pct, summary: `Win rate ${pct}%`, best_team: r.best_team });
@@ -399,6 +401,34 @@ export default function Simulations({ onNavigate }) {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Botón para traspasar movimientos al equipo seleccionado */}
+          {simulationResult?.best_team && selectedTeam?.id && (
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <button
+                className="pk-btn pk-btn-secondary"
+                onClick={async () => {
+                  const ok = window.confirm('¿Deseas traspasar la configuración (moves/ability/item) al equipo seleccionado? Esto sobrescribirá los datos actuales.');
+                  if (!ok) return;
+                  try {
+                    const payload = { team_id: selectedTeam.id, best_team: simulationResult.best_team, user_id: user?.id };
+                    const res = await persistBestConfiguration(payload);
+                    if (res?.success) {
+                      alert('Movimientos traspasados correctamente al equipo.');
+                    } else {
+                      throw new Error('Error al persistir');
+                    }
+                  } catch (e) {
+                    console.error('Persist error', e.message || e);
+                    alert('No se pudo traspasar: ' + (e.message || e));
+                  }
+                }}
+                style={{ padding: '8px 14px', fontSize: 13 }}
+              >
+                Traspasar Movimientos al Equipo
+              </button>
             </div>
           )}
 

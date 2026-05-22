@@ -195,3 +195,8 @@ export const simulateBattle = async (payload) => {
   const { data } = await axios.post(`${msMonteBase}/simulate`, payload);
   return data;
 };
+
+export const persistBestConfiguration = async (payload) => {
+  const { data } = await axios.post(`${msMonteBase}/persist_best`, payload);
+  return data;
+};

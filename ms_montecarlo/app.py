@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
@@ -29,6 +29,7 @@ class SimulateRequest(BaseModel):
     team_a_id: Optional[int] = None
     team_b_id: Optional[int] = None
     api_url: Optional[str] = None
+    persist_moves: bool = False
     iterations: int = 1000
     sims: int = 500
 
@@ -208,9 +209,216 @@ def simulate(req: SimulateRequest):
         conn.commit()
         cur.close()
         conn.close()
+        # Insert optimized configuration recommendations per team_pokemon (if team_a_id provided)
+        try:
+            if getattr(req, 'team_a_id', None):
+                conn2 = get_db_conn()
+                cur2 = conn2.cursor()
+
+                def _get_or_create_move_id(name):
+                    if not name:
+                        return None
+                    cur2.execute("SELECT id FROM moves WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                    r = cur2.fetchone()
+                    if r:
+                        return r[0]
+                    cur2.execute("INSERT INTO moves (name) VALUES (%s) RETURNING id", (name,))
+                    return cur2.fetchone()[0]
+
+                def _get_or_create_ability_id(name):
+                    if not name:
+                        return None
+                    cur2.execute("SELECT id FROM abilities WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                    r = cur2.fetchone()
+                    if r:
+                        return r[0]
+                    cur2.execute("INSERT INTO abilities (name) VALUES (%s) RETURNING id", (name,))
+                    return cur2.fetchone()[0]
+
+                def _get_or_create_item_id(name):
+                    if not name:
+                        return None
+                    cur2.execute("SELECT id FROM items WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                    r = cur2.fetchone()
+                    if r:
+                        return r[0]
+                    cur2.execute("INSERT INTO items (name) VALUES (%s) RETURNING id", (name,))
+                    return cur2.fetchone()[0]
+
+                def _find_or_create_team_pokemon(team_id, pokemon_name):
+                    cur2.execute("SELECT id FROM pokemon WHERE lower(name)=lower(%s) LIMIT 1", (pokemon_name,))
+                    p = cur2.fetchone()
+                    if not p:
+                        return None
+                    pokemon_id = p[0]
+                    cur2.execute("SELECT id FROM team_pokemon WHERE team_id=%s AND pokemon_id=%s LIMIT 1", (team_id, pokemon_id))
+                    r = cur2.fetchone()
+                    if r:
+                        return r[0]
+                    cur2.execute("SELECT COALESCE(MAX(slot),0)+1 FROM team_pokemon WHERE team_id=%s", (team_id,))
+                    slot = cur2.fetchone()[0]
+                    cur2.execute("INSERT INTO team_pokemon (team_id, pokemon_id, slot) VALUES (%s,%s,%s) RETURNING id", (team_id, pokemon_id, slot))
+                    return cur2.fetchone()[0]
+
+                for p in best_team:
+                    try:
+                        name = (p.get('name') or p.get('pokemon') or p.get('display_name') or '').strip()
+                        if not name:
+                            continue
+                        tp_id = _find_or_create_team_pokemon(req.team_a_id, name)
+                        if not tp_id:
+                            continue
+                        # ability / item
+                        ability_name = None
+                        a = p.get('ability')
+                        if isinstance(a, dict):
+                            ability_name = a.get('ability') or a.get('name')
+                        elif isinstance(a, str):
+                            ability_name = a
+                        ability_id = _get_or_create_ability_id(ability_name)
+
+                        item_name = None
+                        it = p.get('item')
+                        if isinstance(it, dict):
+                            item_name = it.get('item') or it.get('name')
+                        elif isinstance(it, str):
+                            item_name = it
+                        item_id = _get_or_create_item_id(item_name)
+
+                        # moves: convert to move ids
+                        moves = p.get('moves') or []
+                        move_ids = []
+                        for m in moves:
+                            move_name = None
+                            if isinstance(m, dict):
+                                move_name = m.get('move') or m.get('name')
+                            else:
+                                move_name = str(m)
+                            mid = _get_or_create_move_id(move_name)
+                            if mid:
+                                move_ids.append(mid)
+
+                        # Insert optimized_configurations row
+                        cur2.execute(
+                            "INSERT INTO optimized_configurations (battle_simulation_id, team_pokemon_id, recommended_ability_id, recommended_item_id, recommended_moves, win_rate_improvement, confidence_score, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
+                            [sim_id, tp_id, ability_id, item_id, json.dumps(move_ids), None, None],
+                        )
+                    except Exception:
+                        continue
+
+                conn2.commit()
+                cur2.close()
+                conn2.close()
+        except Exception as e:
+            print(f"ms_montecarlo: optimized_configurations insert failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"DB insert failed: {e}")
 
+    # Optionally persist best moves/ability/item into team tables
+    if getattr(req, 'persist_moves', False) and getattr(req, 'team_a_id', None):
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+
+            def get_or_create_ability(name):
+                if not name:
+                    return None
+                cur.execute("SELECT id FROM abilities WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                r = cur.fetchone()
+                if r:
+                    return r[0]
+                cur.execute("INSERT INTO abilities (name) VALUES (%s) RETURNING id", (name,))
+                return cur.fetchone()[0]
+
+            def get_or_create_item(name):
+                if not name:
+                    return None
+                cur.execute("SELECT id FROM items WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                r = cur.fetchone()
+                if r:
+                    return r[0]
+                cur.execute("INSERT INTO items (name) VALUES (%s) RETURNING id", (name,))
+                return cur.fetchone()[0]
+
+            def get_or_create_move(name):
+                if not name:
+                    return None
+                cur.execute("SELECT id FROM moves WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+                r = cur.fetchone()
+                if r:
+                    return r[0]
+                cur.execute("INSERT INTO moves (name) VALUES (%s) RETURNING id", (name,))
+                return cur.fetchone()[0]
+
+            def find_team_pokemon(team_id, pokemon_name):
+                cur.execute("SELECT id, pokemon_id FROM pokemon WHERE lower(name)=lower(%s) LIMIT 1", (pokemon_name,))
+                p = cur.fetchone()
+                if not p:
+                    return None
+                pokemon_id = p[0]
+                # try to find existing team_pokemon
+                cur.execute("SELECT id FROM team_pokemon WHERE team_id=%s AND pokemon_id=%s LIMIT 1", (req.team_a_id, pokemon_id))
+                r = cur.fetchone()
+                if r:
+                    return r[0]
+                # create team_pokemon in next slot
+                cur.execute("SELECT COALESCE(MAX(slot),0)+1 FROM team_pokemon WHERE team_id=%s", (req.team_a_id,))
+                slot = cur.fetchone()[0]
+                cur.execute("INSERT INTO team_pokemon (team_id, pokemon_id, slot) VALUES (%s,%s,%s) RETURNING id", (req.team_a_id, pokemon_id, slot))
+                return cur.fetchone()[0]
+
+            for p in best_team:
+                try:
+                    name = (p.get('name') or p.get('pokemon') or p.get('display_name') or '').strip()
+                    if not name:
+                        continue
+                    tp_id = find_team_pokemon(req.team_a_id, name)
+                    if not tp_id:
+                        continue
+                    # ability
+                    ability_name = None
+                    a = p.get('ability')
+                    if isinstance(a, dict):
+                        ability_name = a.get('ability') or a.get('name')
+                    elif isinstance(a, str):
+                        ability_name = a
+                    ability_id = get_or_create_ability(ability_name)
+                    if ability_id:
+                        cur.execute("UPDATE team_pokemon SET ability_id=%s WHERE id=%s", (ability_id, tp_id))
+                    # item
+                    item_name = None
+                    it = p.get('item')
+                    if isinstance(it, dict):
+                        item_name = it.get('item') or it.get('name')
+                    elif isinstance(it, str):
+                        item_name = it
+                    item_id = get_or_create_item(item_name)
+                    if item_id:
+                        cur.execute("UPDATE team_pokemon SET item_id=%s WHERE id=%s", (item_id, tp_id))
+                    # moves
+                    moves = p.get('moves') or []
+                    for idx, m in enumerate(moves):
+                        move_name = None
+                        if isinstance(m, dict):
+                            move_name = m.get('move') or m.get('name')
+                        else:
+                            move_name = str(m)
+                        move_id = get_or_create_move(move_name)
+                        if move_id:
+                            try:
+                                cur.execute("INSERT INTO team_pokemon_moves (team_pokemon_id, move_id, slot) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING", (tp_id, move_id, idx+1))
+                            except Exception:
+                                pass
+                except Exception:
+                    continue
+
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"ms_montecarlo: persist_moves failed: {e}")
+
+    
     # Return only the best configuration as requested by the frontend
     # Prepare simplified best_team for response: strings for item/ability/moves and include sprites
     def simplify_entry(p):
@@ -243,3 +451,117 @@ def simulate(req: SimulateRequest):
 
     # Return top-level shape: win_rate as percentage and simplified best_team
     return {"success": True, "simulation_id": sim_id, "win_rate": team_a_prob, "best_team": simplified_best}
+
+
+
+@app.post('/persist_best')
+def persist_best(payload: Any = Body(...)):
+    """Persist a best_team sent from frontend into team_pokemon / team_pokemon_moves.
+    Expects JSON: { team_id: int, best_team: [ { name, item, ability, moves } ], user_id?: int }
+    """
+    try:
+        team_id = payload.get('team_id')
+        best_team = payload.get('best_team') or []
+        if not team_id or not isinstance(best_team, list):
+            raise HTTPException(status_code=400, detail='team_id and best_team required')
+        conn = get_db_conn()
+        cur = conn.cursor()
+
+        def get_or_create_ability(name):
+            if not name:
+                return None
+            cur.execute("SELECT id FROM abilities WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+            r = cur.fetchone()
+            if r:
+                return r[0]
+            cur.execute("INSERT INTO abilities (name) VALUES (%s) RETURNING id", (name,))
+            return cur.fetchone()[0]
+
+        def get_or_create_item(name):
+            if not name:
+                return None
+            cur.execute("SELECT id FROM items WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+            r = cur.fetchone()
+            if r:
+                return r[0]
+            cur.execute("INSERT INTO items (name) VALUES (%s) RETURNING id", (name,))
+            return cur.fetchone()[0]
+
+        def get_or_create_move(name):
+            if not name:
+                return None
+            cur.execute("SELECT id FROM moves WHERE lower(name)=lower(%s) LIMIT 1", (name,))
+            r = cur.fetchone()
+            if r:
+                return r[0]
+            cur.execute("INSERT INTO moves (name) VALUES (%s) RETURNING id", (name,))
+            return cur.fetchone()[0]
+
+        def find_or_create_team_pokemon(team_id, pokemon_name):
+            cur.execute("SELECT id FROM pokemon WHERE lower(name)=lower(%s) LIMIT 1", (pokemon_name,))
+            p = cur.fetchone()
+            if not p:
+                return None
+            pokemon_id = p[0]
+            cur.execute("SELECT id FROM team_pokemon WHERE team_id=%s AND pokemon_id=%s LIMIT 1", (team_id, pokemon_id))
+            r = cur.fetchone()
+            if r:
+                return r[0]
+            cur.execute("SELECT COALESCE(MAX(slot),0)+1 FROM team_pokemon WHERE team_id=%s", (team_id,))
+            slot = cur.fetchone()[0]
+            cur.execute("INSERT INTO team_pokemon (team_id, pokemon_id, slot) VALUES (%s,%s,%s) RETURNING id", (team_id, pokemon_id, slot))
+            return cur.fetchone()[0]
+
+        for p in best_team:
+            try:
+                name = (p.get('name') or p.get('pokemon') or p.get('display_name') or '').strip()
+                if not name:
+                    continue
+                tp_id = find_or_create_team_pokemon(team_id, name)
+                if not tp_id:
+                    continue
+                # ability
+                ability_name = None
+                a = p.get('ability')
+                if isinstance(a, dict):
+                    ability_name = a.get('ability') or a.get('name')
+                elif isinstance(a, str):
+                    ability_name = a
+                ability_id = get_or_create_ability(ability_name)
+                if ability_id:
+                    cur.execute("UPDATE team_pokemon SET ability_id=%s WHERE id=%s", (ability_id, tp_id))
+                # item
+                item_name = None
+                it = p.get('item')
+                if isinstance(it, dict):
+                    item_name = it.get('item') or it.get('name')
+                elif isinstance(it, str):
+                    item_name = it
+                item_id = get_or_create_item(item_name)
+                if item_id:
+                    cur.execute("UPDATE team_pokemon SET item_id=%s WHERE id=%s", (item_id, tp_id))
+                # moves
+                moves = p.get('moves') or []
+                for idx, m in enumerate(moves):
+                    move_name = None
+                    if isinstance(m, dict):
+                        move_name = m.get('move') or m.get('name')
+                    else:
+                        move_name = str(m)
+                    move_id = get_or_create_move(move_name)
+                    if move_id:
+                        try:
+                            cur.execute("INSERT INTO team_pokemon_moves (team_pokemon_id, move_id, slot) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING", (tp_id, move_id, idx+1))
+                        except Exception:
+                            pass
+            except Exception:
+                continue
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"persist_best failed: {e}")
