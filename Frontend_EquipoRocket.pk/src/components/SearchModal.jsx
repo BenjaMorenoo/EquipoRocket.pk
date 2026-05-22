@@ -1,7 +1,7 @@
 // src/components/SearchModal.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FaSearch, FaTimes } from 'react-icons/fa';
-import { getPokemon, getBackendPokemons, getBackendPokemon } from '../services/api';
+import { getPokemon, getBackendPokemons, getBackendPokemon, getCollections } from '../services/api';
 import TypeBadge from './TypeBadge';
 
 const ITEMS_PER_PAGE = 40;
@@ -159,6 +159,8 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
   const [query,      setQuery]      = useState('');
   const [allList,    setAllList]    = useState([]);
   const [filtered,   setFiltered]   = useState([]);
+  const [showOnlyCollection, setShowOnlyCollection] = useState(false);
+  const [collectionIds, setCollectionIds] = useState(new Set());
   const [page,       setPage]       = useState(0);
   const [loadingAll, setLoadingAll] = useState(true);
   const [directPk,   setDirectPk]   = useState(null);
@@ -190,14 +192,41 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
   /* Filter on query change */
   useEffect(() => {
     const q = query.trim().toLowerCase();
-    if (!q) {
-      setFiltered(allList);
-    } else {
-      setFiltered(allList.filter((p) => p.name.includes(q)));
+    const base = !q ? allList : allList.filter((p) => p.name.includes(q));
+    let result = base;
+    if (showOnlyCollection) {
+      result = base.filter((p) => collectionIds.has(p.id));
     }
+    setFiltered(result);
     setPage(0);
     setDirectPk(null);
   }, [query, allList]);
+
+  // When toggling collection filter, fetch collection ids if needed
+  useEffect(() => {
+    if (!showOnlyCollection) {
+      // if turning off, simply refilter using existing allList (effect above)
+      const q = query.trim().toLowerCase();
+      const base = !q ? allList : allList.filter((p) => p.name.includes(q));
+      setFiltered(base);
+      return;
+    }
+    // showOnlyCollection === true
+    (async () => {
+      try {
+        const res = await getCollections();
+        const ids = res?.data?.pokemonIds || res?.pokemonIds || [];
+        setCollectionIds(new Set(ids));
+        const q = query.trim().toLowerCase();
+        const base = !q ? allList : allList.filter((p) => p.name.includes(q));
+        setFiltered(base.filter((p) => ids.includes(p.id)));
+      } catch (e) {
+        console.error('No se pudo cargar la colección del usuario', e.message);
+        // fallback: empty filtered list
+        setFiltered([]);
+      }
+    })();
+  }, [showOnlyCollection]);
 
   /* Direct exact search (for IDs or exact names) */
   const handleDirectSearch = async () => {
@@ -314,6 +343,21 @@ export default function SearchModal({ onSelect, onClose, selectedPokemon = [] })
               style={{ padding: '10px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
               {directLoad ? '...' : (<FaSearch />)}
+            </button>
+            <button
+              onClick={async () => {
+                const token = localStorage.getItem('pk_token');
+                if (!token) {
+                  alert('Inicia sesión para usar el filtro de colección');
+                  return;
+                }
+                setShowOnlyCollection(s => !s);
+              }}
+              className={showOnlyCollection ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'}
+              style={{ padding: '10px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+              title="Mostrar sólo Pokémon de mi colección"
+            >
+              {showOnlyCollection ? 'Mi colección' : 'Sólo mi colección'}
             </button>
           </div>
         </div>

@@ -129,6 +129,31 @@ export const setUserActive = async (id, active) => {
   return data;
 };
 
+// ── User collections (ms_usuarios) ─────────────────────────────────────────
+export const getCollections = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/users/collections`, { headers });
+  return data;
+};
+
+export const addToCollection = async (pokemon_id) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.post(`${msUsersBase}/users/collections`, { pokemon_id }, { headers });
+  return data;
+};
+
+export const removeFromCollection = async (pokemon_id) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.delete(`${msUsersBase}/users/collections/${pokemon_id}`, { headers });
+  return data;
+};
+
 // ── ms_pokemon endpoints (DB-backed Pokédex)
 const msPokemonAPI = axios.create({
   baseURL: import.meta.env.VITE_MS_POKEMON_URL || 'http://localhost:3002/api',
