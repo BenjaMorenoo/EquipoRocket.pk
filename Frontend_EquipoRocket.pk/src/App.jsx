@@ -1,5 +1,6 @@
 // src/App.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage     from './pages/AuthPage';
 import Navbar       from './components/Navbar';
@@ -12,50 +13,13 @@ import MisPokemon   from './pages/MisPokemon';
 import Simulations  from './pages/Simulations';
 import { createTeam, updateTeam } from './services/api';
 
-function PlaceholderPage({ title, icon, description }) {
-  return (
-    <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'clamp(40px, 8vw, 80px) 16px', textAlign:'center' }}>
-      <div style={{ fontSize:'clamp(36px, 8vw, 56px)', marginBottom:'20px' }}>{icon}</div>
-      <h1 style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'clamp(24px, 5vw, 32px)', letterSpacing:'0.06em', textTransform:'uppercase', margin:'0 0 12px' }}>{title}</h1>
-      <p style={{ color:'var(--color-pk-muted)', fontSize:'clamp(13px, 2vw, 15px)', maxWidth:'400px', margin:'0 auto 32px' }}>{description}</p>
-      <div style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:'10px', padding:'10px 20px', color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:600, fontSize:'clamp(11px, 1.5vw, 13px)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
-        🚧 En desarrollo
-      </div>
-    </div>
-  );
-}
-
 function AppShell() {
   const { user, logout, loading } = useAuth();
-  const [currentPage,  setCurrentPage]  = useState('home');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [previewMode, setPreviewMode] = useState(false);
   const [adminInitialSection, setAdminInitialSection] = useState(null);
-  const [editingTeam,  setEditingTeam]  = useState(null);
-  const [previewMode,  setPreviewMode]  = useState(false);
-  const [showAuth,     setShowAuth]     = useState(false); // modal de login/register
-
-  const navigate = (page, payload = null) => {
-    if (page === 'auth')  { setShowAuth(true); return; }
-    // support deep navigation into admin sections using 'admin:<section>'
-    if (page && page.startsWith('admin:')) {
-      const section = page.split(':')[1] || null;
-      if (!user?.is_admin || previewMode) return;
-      setAdminInitialSection(section);
-      setCurrentPage('admin');
-      return;
-    }
-    if (page === 'admin' && (!user?.is_admin || previewMode)) return;
-    if (page === 'profile' && !user) { setShowAuth(true); return; }
-    if (page === 'teams'   && !user) { setShowAuth(true); return; }
-    setShowAuth(false);
-    // if navigating to builder with a payload, set editingTeam
-    if (page === 'builder' && payload) {
-      setEditingTeam(payload);
-      setCurrentPage('builder');
-      return;
-    }
-    setCurrentPage(page);
-    if (page !== 'builder') setEditingTeam(null);
-  };
 
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -64,15 +28,9 @@ function AppShell() {
     </div>
   );
 
-  // Si showAuth está activo, mostrar página de auth
-  if (showAuth) return (
-    <AuthPage onSuccess={() => setShowAuth(false)} onBack={() => setShowAuth(false)} onNavigate={navigate} />
-  );
-
   const handleSaveTeam = async (teamData) => {
     try {
       console.log('[TeamBuilder] Guardando equipo:', teamData);
-      // createTeam from API
       let res;
       if (editingTeam && editingTeam.id) {
         res = await updateTeam(editingTeam.id, teamData);
@@ -80,35 +38,76 @@ function AppShell() {
         res = await createTeam(teamData);
       }
       console.log('Equipo guardado', res);
-      setCurrentPage('teams');
+      setEditingTeam(null);
+      navigate('/equipos');
     } catch (e) {
       console.error('Error guardando equipo', e.message);
       alert('No se pudo guardar el equipo: ' + (e.message || 'error'));
     }
   };
 
-  const handlePreviewAsUser = () => { setPreviewMode(true); if (currentPage === 'admin') setCurrentPage('home'); };
-  const handleExitPreview   = () => { setPreviewMode(false); setCurrentPage('admin'); };
+  const handlePreviewAsUser = () => { setPreviewMode(true); };
+  const handleExitPreview = () => { setPreviewMode(false); navigate('/admin'); };
+
+  // Helper function to get current page from location
+  const getCurrentPage = () => {
+    const path = location.pathname;
+    if (path === '/') return 'home';
+    if (path === '/equipos') return 'teams';
+    if (path === '/constructor') return 'builder';
+    if (path === '/perfil') return 'profile';
+    if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
+    if (path === '/simulaciones') return 'sim';
+    if (path === '/mis-pokemon') return 'mypokemon';
+    return 'home';
+  };
+
+  // Helper function for navigation
+  const handleNavigate = (page, payload = null) => {
+    if (page === 'home') navigate('/');
+    if (page === 'auth') navigate('/auth');
+    if (page === 'teams') navigate('/equipos');
+    if (page === 'builder') {
+      if (payload) setEditingTeam(payload);
+      navigate('/constructor');
+    }
+    if (page === 'profile') navigate('/perfil');
+    if (page === 'admin') navigate('/admin');
+    if (page === 'sim') navigate('/simulaciones');
+    if (page === 'mypokemon') navigate('/mis-pokemon');
+    if (page?.startsWith('admin:')) {
+      const section = page.split(':')[1];
+      setAdminInitialSection(section);
+      navigate('/admin');
+    }
+  };
 
   return (
     <div style={{ minHeight:'100vh' }} className="bg-grid">
       <Navbar
-        currentPage={currentPage}
-        onNavigate={navigate}
+        currentPage={getCurrentPage()}
+        onNavigate={handleNavigate}
         user={user}
-        onLogout={logout}
+        onLogout={() => {
+          logout();
+          navigate('/');
+        }}
         isPreview={previewMode}
         onExitPreview={handleExitPreview}
-        onLoginClick={() => setShowAuth(true)}
+        onLoginClick={() => navigate('/auth')}
       />
       <main style={{ position:'relative', zIndex:1 }}>
-        {currentPage === 'home'    && <Home         onNavigate={navigate} />}
-        {currentPage === 'teams'   && user && <MyTeams    onNavigateToBuilder={(t) => { setEditingTeam(t); setCurrentPage('builder'); }} />}
-        {currentPage === 'builder' && <TeamBuilder  initialTeam={editingTeam} onSave={handleSaveTeam} onNavigate={navigate} />}
-        {currentPage === 'profile' && user && <UserProfile onNavigate={navigate} />}
-        {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} initialSection={adminInitialSection} />}
-        {currentPage === 'sim'     && user && <Simulations onNavigate={navigate} />}
-        {currentPage === 'mypokemon' && <MisPokemon onNavigate={navigate} />}
+        <Routes>
+          <Route path="/" element={<Home onNavigate={handleNavigate} />} />
+          <Route path="/auth" element={<AuthPage onSuccess={() => navigate('/')} onBack={() => navigate(-1)} onNavigate={handleNavigate} />} />
+          <Route path="/equipos" element={user ? <MyTeams onNavigateToBuilder={(t) => { setEditingTeam(t); navigate('/constructor'); }} /> : <Navigate to="/auth" />} />
+          <Route path="/constructor" element={<TeamBuilder initialTeam={editingTeam} onSave={handleSaveTeam} onNavigate={handleNavigate} />} />
+          <Route path="/perfil" element={user ? <UserProfile onNavigate={handleNavigate} /> : <Navigate to="/auth" />} />
+          <Route path="/admin/*" element={user?.is_admin && !previewMode ? <AdminPanel onPreviewAsUser={handlePreviewAsUser} initialSection={adminInitialSection} /> : <Navigate to="/" />} />
+          <Route path="/simulaciones" element={<Simulations onNavigate={handleNavigate} />} />
+          <Route path="/mis-pokemon" element={<MisPokemon onNavigate={handleNavigate} />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </main>
     </div>
   );

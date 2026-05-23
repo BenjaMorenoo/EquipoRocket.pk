@@ -1,20 +1,25 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial, FaChartBar, FaBars } from 'react-icons/fa';
 import logo from '../assets/logo.png';
 
 const NAV_LINKS = [
-  { id: 'teams',     label: 'Mis Equipos', icon: <FaLayerGroup /> },
-  { id: 'mypokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
-  { id: 'sim',       label: 'Simulaciones', icon: <FaVial /> },
-  { id: 'builder',   label: 'Constructor', icon: <FaWrench /> },
-  { id: 'admin:performance', label: 'Analytics',    icon: <FaChartBar />, admin: true },
+  { id: 'teams',     path: '/equipos', label: 'Mis Equipos', icon: <FaLayerGroup /> },
+  { id: 'mypokemon', path: '/mis-pokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
+  { id: 'sim',       path: '/simulaciones', label: 'Simulaciones', icon: <FaVial /> },
+  { id: 'builder',   path: '/constructor', label: 'Constructor', icon: <FaWrench /> },
+  { id: 'admin', path: '/admin', label: 'Analytics',    icon: <FaChartBar />, admin: true },
 ];
 
 function NavBtn({ link, active, onNavigate }) {
+  const navigate = useNavigate();
   return (
     <button
-      onClick={() => onNavigate(link.id)}
+      onClick={() => {
+        navigate(link.path);
+        onNavigate?.();
+      }}
       style={{
         background: active ? 'rgba(220,38,38,0.12)' : 'none',
         border: active ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
@@ -48,7 +53,8 @@ function DropItem({ icon, label, onClick, danger, accent }) {
   );
 }
 
-function ProfileDropdown({ user, onNavigate, onLogout, isPreview, isMobile=false }) {
+function ProfileDropdown({ user, onLogout, isPreview, isMobile=false }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -63,12 +69,12 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview, isMobile=false
   if (isMobile) {
     return (
       <div style={{ width: '100%' }}>
-        <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { onNavigate('profile'); }} />
+        <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { navigate('/perfil'); }} />
         {user?.is_admin && !isPreview && (
-          <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { onNavigate('admin'); }} accent="var(--color-pk-yellow)" />
+          <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { navigate('/admin'); }} accent="var(--color-pk-yellow)" />
         )}
         <div style={{ margin:'5px 6px', borderTop:'1px solid var(--color-pk-border)' }} />
-        <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); }} danger />
+        <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); navigate('/'); }} danger />
       </div>
     );
   }
@@ -107,12 +113,12 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview, isMobile=false
           borderRadius:'12px', padding:'6px', minWidth:'180px', zIndex:50,
           boxShadow:'0 8px 32px rgba(0,0,0,0.4)', animation:'dropDown .15s ease',
         }}>
-          <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { onNavigate('profile'); setOpen(false); }} />
+          <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { navigate('/perfil'); setOpen(false); }} />
           {user?.is_admin && !isPreview && (
-            <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { onNavigate('admin'); setOpen(false); }} accent="var(--color-pk-yellow)" />
+            <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { navigate('/admin'); setOpen(false); }} accent="var(--color-pk-yellow)" />
           )}
           <div style={{ margin:'5px 6px', borderTop:'1px solid var(--color-pk-border)' }} />
-          <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); setOpen(false); }} danger />
+          <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); navigate('/'); setOpen(false); }} danger />
         </div>
       )}
       <style>{`@keyframes dropDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }`}</style>
@@ -120,18 +126,15 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview, isMobile=false
   );
 }
 
-export default function Navbar({ currentPage, onNavigate, user, onLogout, isPreview=false, onExitPreview, onLoginClick }) {
+export default function Navbar({ currentPage, user, onLogout, isPreview=false, onExitPreview, onLoginClick }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Close mobile menu when navigation happens
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [currentPage]);
-
-  const handleNavigate = (page) => {
-    onNavigate(page);
-    setMobileMenuOpen(false);
-  };
+  }, [location.pathname]);
 
   return (
     <>
@@ -149,15 +152,15 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
         <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 16px', minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap: 'wrap' }}>
           
           {/* Logo */}
-          <button onClick={() => handleNavigate('home')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+          <button onClick={() => navigate('/')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
             <img src={logo} alt='EquipoRocket' style={{ width:'34px', height:'34px', flexShrink:0 }} />
-            <div style={{ lineHeight:1, display: 'none' }}>
+            <div style={{ lineHeight:1, display: 'none' }} className="logo-name">
               <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'17px', letterSpacing:'0.08em', color:'var(--color-pk-text)', textTransform:'uppercase' }}>Equipo<span style={{ color:'var(--color-pk-red)' }}>Rocket</span></div>
               <div style={{ fontSize:'8px', color:'var(--color-pk-muted)', letterSpacing:'0.2em', textTransform:'uppercase' }}>Pokémon Champions</div>
             </div>
             <style>{`
               @media (min-width: 768px) {
-                button[style*="display:'flex'"][style*="gap:'10px'"] div {
+                .logo-name {
                   display: block !important;
                 }
               }
@@ -168,14 +171,17 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
           <div className="navbar-desktop" style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center', minWidth: 0 }}>
             {NAV_LINKS
               .filter(link => !link.admin || (user && user.is_admin))
-              .map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id || (link.id.startsWith('admin:') && currentPage==='admin')} onNavigate={handleNavigate} />)}
+              .map(link => {
+                const isActive = location.pathname === link.path || (link.path === '/admin' && location.pathname.startsWith('/admin'));
+                return <NavBtn key={link.id} link={link} active={isActive} onNavigate={() => setMobileMenuOpen(false)} />
+              })}
           </div>
 
           {/* Desktop Right Actions */}
           <div className="navbar-desktop" style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
-            <button onClick={() => handleNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
+            <button onClick={() => navigate('/constructor')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
             {user
-              ? <ProfileDropdown user={user} onNavigate={handleNavigate} onLogout={onLogout} isPreview={isPreview} />
+              ? <ProfileDropdown user={user} onLogout={onLogout} isPreview={isPreview} />
               : <div style={{ display:'flex', gap:'8px' }}>
                   <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaBolt /> Iniciar</button>
                   <button onClick={onLoginClick} className="pk-btn pk-btn-primary"   style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaUserPlus /> Registrarse</button>
@@ -216,43 +222,52 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
           }}>
             {NAV_LINKS
               .filter(link => !link.admin || (user && user.is_admin))
-              .map(link => (
-                <button
-                  key={link.id}
-                  onClick={() => handleNavigate(link.id)}
-                  style={{
-                    width: '100%',
-                    background: currentPage === link.id ? 'rgba(220,38,38,0.12)' : 'none',
-                    border: currentPage === link.id ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
-                    borderRadius: '8px',
-                    color: currentPage === link.id ? 'var(--color-pk-red-light)' : 'var(--color-pk-subtle)',
-                    cursor: 'pointer',
-                    padding: '10px 12px',
-                    fontFamily: 'var(--font-heading)',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    transition: 'all 0.15s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ fontSize: '14px' }}>{link.icon}</span> {link.label}
-                </button>
-              ))}
+              .map(link => {
+                const isActive = location.pathname === link.path || (link.path === '/admin' && location.pathname.startsWith('/admin'));
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      navigate(link.path);
+                      setMobileMenuOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: isActive ? 'rgba(220,38,38,0.12)' : 'none',
+                      border: isActive ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
+                      borderRadius: '8px',
+                      color: isActive ? 'var(--color-pk-red-light)' : 'var(--color-pk-subtle)',
+                      cursor: 'pointer',
+                      padding: '10px 12px',
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>{link.icon}</span> {link.label}
+                  </button>
+                );
+              })}
             <div style={{ margin:'8px 0', borderTop:'1px solid var(--color-pk-border)' }} />
             <button 
-              onClick={() => handleNavigate('builder')} 
+              onClick={() => {
+                navigate('/constructor');
+                setMobileMenuOpen(false);
+              }}
               className="pk-btn pk-btn-primary" 
               style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', alignItems:'center', gap:8, justifyContent: 'center' }}
             >
               <FaPlus /> Nuevo Equipo
             </button>
             {user
-              ? <ProfileDropdown user={user} onNavigate={handleNavigate} onLogout={onLogout} isPreview={isPreview} isMobile={true} />
+              ? <ProfileDropdown user={user} onLogout={onLogout} isPreview={isPreview} isMobile={true} />
               : <div style={{ display:'flex', gap:'8px', flexDirection: 'column' }}>
                   <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', gap:8, alignItems:'center', justifyContent: 'center' }}><FaBolt /> Iniciar Sesión</button>
                   <button onClick={onLoginClick} className="pk-btn pk-btn-primary" style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', gap:8, alignItems:'center', justifyContent: 'center' }}><FaUserPlus /> Registrarse</button>
