@@ -82,6 +82,63 @@ async function applySchema() {
   }
 }
 
+async function applyAdminMaterializedViews() {
+  const mvPath = path.join(__dirname, 'admin_materialized_views.sql');
+  try {
+    await fs.access(mvPath);
+  } catch (e) {
+    // no admin materialized views file present
+    return { skipped: true, reason: 'no_file' };
+  }
+
+  const sql = await fs.readFile(mvPath, 'utf8');
+  const client = new Client({
+    host: process.env.PGHOST || 'localhost',
+    port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || undefined,
+    database: TARGET_DB,
+  });
+  await client.connect();
+  try {
+    const statements = sql
+      .split(/;\s*\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    for (const stmt of statements) {
+      const toExec = stmt.endsWith(';') ? stmt : stmt + ';';
+      try {
+        await client.query(toExec);
+      } catch (err) {
+        const code = err && err.code ? err.code : null;
+        const msg = err && err.message ? err.message : String(err);
+        if (code === '42P07' || /already exists/i.test(msg)) {
+          console.warn('Admin MV: object already exists, skipping. Detail:', msg.split('\n')[0]);
+          continue;
+        }
+        throw new Error(`Error executing admin MV statement: ${msg}\nStatement: ${toExec.substring(0,200)}`);
+      }
+    }
+
+    // Try refreshing the materialized view if it exists
+    try {
+      await client.query('REFRESH MATERIALIZED VIEW CONCURRENTLY admin_team_performance;');
+    } catch (e) {
+      // If CONCURRENTLY is not possible (no unique index) fallback to non-concurrent
+      try {
+        await client.query('REFRESH MATERIALIZED VIEW admin_team_performance;');
+      } catch (e2) {
+        console.warn('Failed to refresh admin_team_performance:', e2.message || e2);
+      }
+    }
+
+    return { applied: true };
+  } finally {
+    await client.end();
+  }
+}
+
 async function ensureDefaultAdminOnCreate(createdFlag) {
   if (!createdFlag) return { skipped: true, reason: 'db_not_created' };
 
@@ -137,6 +194,13 @@ app.post('/init', async (req, res) => {
     // son idempotentes (ON CONFLICT DO NOTHING), por lo que es seguro ejecutarlas
     // aunque la base de datos ya exista.
     await applySchema();
+    // apply admin materialized views if present and refresh them
+    try {
+      const mvRes = await applyAdminMaterializedViews();
+      console.log('applyAdminMaterializedViews:', mvRes);
+    } catch (e) {
+      console.warn('applyAdminMaterializedViews failed:', e.message || e);
+    }
     // If DB was just created, ensure default admin exists
     try {
       const adminRes = await ensureDefaultAdminOnCreate(result.created);
@@ -163,6 +227,12 @@ if (process.argv[2] === 'init') {
       console.log(result.message);
       // Aplicar esquema siempre: las sentencias son idempotentes
       await applySchema();
+      try {
+        const mvRes = await applyAdminMaterializedViews();
+        console.log('applyAdminMaterializedViews:', mvRes);
+      } catch (e) {
+        console.warn('applyAdminMaterializedViews failed:', e.message || e);
+      }
       try {
         const adminRes = await ensureDefaultAdminOnCreate(result.created);
         console.log('ensureDefaultAdminOnCreate:', adminRes);

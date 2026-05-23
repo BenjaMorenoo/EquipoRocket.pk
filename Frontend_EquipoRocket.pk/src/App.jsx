@@ -28,12 +28,21 @@ function PlaceholderPage({ title, icon, description }) {
 function AppShell() {
   const { user, logout, loading } = useAuth();
   const [currentPage,  setCurrentPage]  = useState('home');
+  const [adminInitialSection, setAdminInitialSection] = useState(null);
   const [editingTeam,  setEditingTeam]  = useState(null);
   const [previewMode,  setPreviewMode]  = useState(false);
   const [showAuth,     setShowAuth]     = useState(false); // modal de login/register
 
   const navigate = (page) => {
     if (page === 'auth')  { setShowAuth(true); return; }
+    // support deep navigation into admin sections using 'admin:<section>'
+    if (page && page.startsWith('admin:')) {
+      const section = page.split(':')[1] || null;
+      if (!user?.is_admin || previewMode) return;
+      setAdminInitialSection(section);
+      setCurrentPage('admin');
+      return;
+    }
     if (page === 'admin' && (!user?.is_admin || previewMode)) return;
     if (page === 'profile' && !user) { setShowAuth(true); return; }
     if (page === 'teams'   && !user) { setShowAuth(true); return; }
@@ -91,7 +100,7 @@ function AppShell() {
         {currentPage === 'teams'   && user && <MyTeams    onNavigateToBuilder={(t) => { setEditingTeam(t); setCurrentPage('builder'); }} />}
         {currentPage === 'builder' && <TeamBuilder  initialTeam={editingTeam} onSave={handleSaveTeam} onNavigate={navigate} />}
         {currentPage === 'profile' && user && <UserProfile onNavigate={navigate} />}
-        {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} />}
+        {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} initialSection={adminInitialSection} />}
         {currentPage === 'sim'     && user && <Simulations onNavigate={navigate} />}
         {currentPage === 'mypokemon' && <MisPokemon onNavigate={navigate} />}
       </main>

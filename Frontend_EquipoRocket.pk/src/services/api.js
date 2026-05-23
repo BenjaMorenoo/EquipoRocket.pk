@@ -265,3 +265,36 @@ export const createSpread = async ({ nature, ev }) => {
   const { data } = await axios.post(`${msUsersBase}/data/spreads`, { nature, ev }, { headers });
   return data;
 };
+
+// Admin metrics
+export const getAdminTeamPerformance = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/teams/performance`, { headers });
+  return data;
+};
+
+export const getTypesByCountry = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/usage/types-by-country`, { headers });
+  return data;
+};
+
+export const getUsersByAge = async (age) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/users/by-age?age=${encodeURIComponent(age)}`, { headers });
+  return data;
+};
+
+export const getUsersAgeBuckets = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/users/age-buckets`, { headers });
+  return data;
+};

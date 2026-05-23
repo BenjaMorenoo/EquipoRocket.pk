@@ -6,6 +6,8 @@ import { REGIONS, COUNTRIES_BY_REGION } from '../utils/regions';
 import { validators } from '../utils/validators';
 import ConfirmModal from '../components/ConfirmModal';
 import { getUsers, setUserActive, registerUser } from '../services/api';
+import AdminPerformance from '../components/AdminPerformance';
+import AdminUsageByCountry from '../components/AdminUsageByCountry';
 
 /* ── Mock data (replace with API calls when backend is ready) ───────────── */
 const MOCK_USERS = [
@@ -143,7 +145,7 @@ function CreateAdminModal({ onClose, onCreate }) {
 }
 
 /* ── Main Panel ─────────────────────────────────────────────────────────── */
-export default function AdminPanel({ onPreviewAsUser }) {
+export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
   const { user: adminUser } = useAuth();
   const [users,      setUsers]      = useState([]);
   const [search,     setSearch]     = useState('');
@@ -153,6 +155,7 @@ export default function AdminPanel({ onPreviewAsUser }) {
   const [sortBy,     setSortBy]     = useState('created_at');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [createAdminOpen, setCreateAdminOpen] = useState(false);
+  const [section, setSection] = useState(initialSection || 'performance');
 
   /* ── Derived stats ── */
   const totalUsers   = users.length;
@@ -228,6 +231,11 @@ export default function AdminPanel({ onPreviewAsUser }) {
     return () => { mounted = false; };
   }, []);
 
+  // If initialSection prop changes (via navigation), update local section
+  useEffect(() => {
+    if (initialSection) setSection(initialSection);
+  }, [initialSection]);
+
   const selStyle = {
     background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)',
     borderRadius: '8px', color: 'var(--color-pk-text)', fontFamily: 'var(--font-body)',
@@ -286,6 +294,34 @@ export default function AdminPanel({ onPreviewAsUser }) {
         </div>
       </div>
 
+      {/* Admin performance metrics */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <button onClick={() => setSection('performance')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'performance' ? 'rgba(37,99,235,0.08)' : 'var(--color-pk-card)', border: section === 'performance' ? '1px solid rgba(37,99,235,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Performance</button>
+          <button onClick={() => setSection('users')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'users' ? 'rgba(16,185,129,0.08)' : 'var(--color-pk-card)', border: section === 'users' ? '1px solid rgba(16,185,129,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Users</button>
+          <button onClick={() => setSection('teams')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'teams' ? 'rgba(245,158,11,0.08)' : 'var(--color-pk-card)', border: section === 'teams' ? '1px solid rgba(245,158,11,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Teams</button>
+          <button onClick={() => setSection('simulations')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'simulations' ? 'rgba(220,38,38,0.06)' : 'var(--color-pk-card)', border: section === 'simulations' ? '1px solid rgba(220,38,38,0.14)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Simulations</button>
+        </div>
+
+        <div className="fade-up fade-up-2">
+          {section === 'performance' && <AdminPerformance />}
+          {section === 'users' && (
+            <div className="pk-card fade-up fade-up-3" style={{ padding: '20px' }}>
+              {/* Reuse existing Users table below by moving its JSX here */}
+              <div style={{ marginBottom: 8 }}> (Users management)</div>
+            </div>
+          )}
+          {section === 'teams' && (
+            <div className="fade-up fade-up-3">
+              <AdminUsageByCountry />
+            </div>
+          )}
+          {section === 'simulations' && (
+            <div className="pk-card" style={{ padding: 20 }}>Simulations analytics (en desarrollo)</div>
+          )}
+        </div>
+      </div>
+
       {/* ── Stats ── */}
       <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '14px', marginBottom: '24px' }}>
         <StatCard label="Usuarios totales" value={totalUsers}  icon={<FaUsers />} color="var(--color-pk-blue)"   />
@@ -295,7 +331,8 @@ export default function AdminPanel({ onPreviewAsUser }) {
       </div>
 
       {/* ── Users table card ── */}
-      <div className="pk-card fade-up fade-up-3" style={{ padding: '20px' }}>
+      {section === 'users' && (
+        <div className="pk-card fade-up fade-up-3" style={{ padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
             Gestión de Usuarios <span style={{ color: 'var(--color-pk-muted)', fontWeight: 400, fontSize: '13px' }}>({filtered.length})</span>
@@ -447,7 +484,8 @@ export default function AdminPanel({ onPreviewAsUser }) {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* ── Delete confirm modal ── */}
       {deleteTarget && (

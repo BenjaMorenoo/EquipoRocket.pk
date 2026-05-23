@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
-import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial } from 'react-icons/fa';
+import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial, FaChartBar } from 'react-icons/fa';
 import logo from '../assets/logo.png';
 
 const NAV_LINKS = [
@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { id: 'mypokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
   { id: 'sim',       label: 'Simulaciones', icon: <FaVial /> },
   { id: 'builder',   label: 'Constructor', icon: <FaWrench /> },
+  { id: 'admin:performance', label: 'Analytics',    icon: <FaChartBar />, admin: true },
 ];
 
 function NavBtn({ link, active, onNavigate }) {
@@ -129,7 +130,9 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
             </div>
           </button>
           <div style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center' }}>
-            {NAV_LINKS.map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id} onNavigate={onNavigate} />)}
+            {NAV_LINKS
+              .filter(link => !link.admin || (user && user.is_admin))
+              .map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id || (link.id.startsWith('admin:') && currentPage==='admin')} onNavigate={onNavigate} />)}
           </div>
             <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
             <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
