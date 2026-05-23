@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
-import { persistBestConfiguration } from '../services/api';
+import { persistBestConfiguration, postTeamFeedback } from '../services/api';
 import { FaPlay, FaVial, FaChartLine } from 'react-icons/fa';
 
 export default function Simulations({ onNavigate }) {
@@ -192,6 +192,7 @@ export default function Simulations({ onNavigate }) {
                     {selectedTeam?.id === team.id && (
                     <div style={{ fontSize: 12, fontWeight: 700 }}>✓ SELECCIONADO</div>
                   )}
+                    {/* Feedback buttons removed from Simulations page — present only in Mis Equipos */}
                 </button>
               ))}
             </div>

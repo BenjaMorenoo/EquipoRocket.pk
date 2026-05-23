@@ -171,6 +171,54 @@ export const getBackendPokemon = async (name) => {
   return data;
 };
 
+// Data lists from ms_usuarios
+export const getMovesList = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/data/moves`, { headers });
+  return data;
+};
+
+export const getAbilitiesList = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/data/abilities`, { headers });
+  return data;
+};
+
+export const getItemsList = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/data/items`, { headers });
+  return data;
+};
+
+// Team feedback
+export const postTeamFeedback = async (team_id, type) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.post(`${msUsersBase}/teams/${team_id}/feedback`, { type }, { headers });
+  return data;
+};
+
+export const getTeamFeedback = async (team_id) => {
+  try {
+    const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+    const token = localStorage.getItem('pk_token');
+    const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    const { data } = await axios.get(`${msUsersBase}/teams/${team_id}/feedback`, { headers });
+    return data;
+  } catch (err) {
+    // Fail gracefully — caller will handle missing data
+    console.debug('getTeamFeedback error', err.message || err);
+    return null;
+  }
+};
+
 // ── ms_asistencia (AI assistance) ───────────────────────────────────────────
 const msAsistenciaBase = import.meta.env.VITE_MS_ASISTENCIA_URL || 'http://localhost:8005';
 

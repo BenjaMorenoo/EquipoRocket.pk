@@ -1,8 +1,8 @@
 // src/pages/MyTeams.jsx
 import { useState, useEffect } from 'react';
-import { getTeams, deleteTeam as apiDeleteTeam } from '../services/api';
+import { getTeams, deleteTeam as apiDeleteTeam, postTeamFeedback, getTeamFeedback } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
-import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle, FaThumbsUp, FaThumbsDown } from 'react-icons/fa';
 
 // Mock data while backend is not connected
 const MOCK_TEAMS = [
@@ -36,9 +36,23 @@ const MOCK_TEAMS = [
 
 function TeamCard({ team, onEdit, onDelete }) {
   const [sprites, setSprites] = useState({});
+  const [feedbackCounts, setFeedbackCounts] = useState({ wins: 0, loses: 0 });
   useEffect(() => {
     // Clear previous sprites when team changes
     setSprites({});
+    // fetch feedback counts for this team (graceful)
+    (async () => {
+      try {
+        const fb = await getTeamFeedback(team.id);
+        if (fb) {
+          // Accept shapes: { wins, loses } or { data: { wins, loses } }
+          const payload = fb.data || fb || {};
+          setFeedbackCounts({ wins: Number(payload.wins || 0), loses: Number(payload.loses || 0) });
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
 
     // helper: return lookup value for API and normalized key for map
     const getLookup = (pk) => {
@@ -215,6 +229,55 @@ function TeamCard({ team, onEdit, onDelete }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Feedback buttons placed below sprites (only in Mis Equipos) */}
+      <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          className="pk-btn pk-btn-secondary"
+          onClick={async () => {
+            try {
+              await postTeamFeedback(team.id, 'good');
+              setFeedbackCounts((s) => ({ ...s, wins: (s.wins || 0) + 1 }));
+              alert('Gracias por tu feedback positivo');
+            } catch (err) {
+              console.error('Feedback error', err.message || err);
+              alert('No se pudo enviar feedback');
+            }
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
+        >
+          <FaThumbsUp /> Bueno
+        </button>
+        <div style={{ marginLeft: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
+            <FaThumbsUp style={{ opacity: 0.95 }} />
+            {feedbackCounts.wins}
+          </span>
+        </div>
+
+        <button
+          className="pk-btn pk-btn-secondary"
+          onClick={async () => {
+            try {
+              await postTeamFeedback(team.id, 'bad');
+              setFeedbackCounts((s) => ({ ...s, loses: (s.loses || 0) + 1 }));
+              alert('Gracias por tu feedback');
+            } catch (err) {
+              console.error('Feedback error', err.message || err);
+              alert('No se pudo enviar feedback');
+            }
+          }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
+        >
+          <FaThumbsDown /> Malo
+        </button>
+        <div style={{ marginLeft: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
+            <FaThumbsDown style={{ opacity: 0.95 }} />
+            {feedbackCounts.loses}
+          </span>
+        </div>
       </div>
 
       {/* Types row */}

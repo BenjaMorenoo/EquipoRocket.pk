@@ -7,6 +7,8 @@ class TeamRepository {
   update(id, payload){ return Model.updateTeam(id, payload); }
   delete(id){ return Model.deleteTeam(id); }
   replacePokemons(team_id,pokemons){ return Model.replaceTeamPokemons(team_id,pokemons); }
+  addFeedback(team_id, user_id, type){ return Model.addTeamFeedback(team_id, user_id, type); }
+  getFeedbackCounts(team_id){ return Model.getFeedbackCounts(team_id); }
 }
 
 export default new TeamRepository();

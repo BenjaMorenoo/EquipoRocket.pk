@@ -1,5 +1,5 @@
 // src/pages/TeamBuilder.jsx
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import PokemonSlot           from '../components/PokemonSlot';
 import SearchModal           from '../components/SearchModal';
 import AuthPromptModal       from '../components/AuthPromptModal';
@@ -10,11 +10,11 @@ import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
 import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
 import AssistedBuilderModal from '../components/AssistedBuilderModal';
-import { getPokemon, getBackendPokemon } from '../services/api';
+import { getPokemon, getBackendPokemon, getMovesList, getAbilitiesList, getItemsList } from '../services/api';
 
 const TEAM_SIZE = 6;
 
-export default function TeamBuilder({ onSave, onNavigate }) {
+export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
   const { user } = useAuth();
 
   const [team,        setTeam]        = useState(Array(TEAM_SIZE).fill(null));
@@ -28,6 +28,9 @@ export default function TeamBuilder({ onSave, onNavigate }) {
   const [activeTab,   setActiveTab]   = useState('weakness');
   const [authPrompt,  setAuthPrompt]  = useState(null); // null | 'guardar' | 'exportar'
   const [assistOpen, setAssistOpen] = useState(false);
+  const [movesOptions, setMovesOptions] = useState([]);
+  const [abilitiesOptions, setAbilitiesOptions] = useState([]);
+  const [itemsOptions, setItemsOptions] = useState([]);
 
   const filledCount    = team.filter(Boolean).length;
   const totalBaseStats = team.filter(Boolean).reduce((a, pk) => a + (pk?.stats?.reduce((s, st) => s + st.base_stat, 0) || 0), 0);
@@ -36,7 +39,8 @@ export default function TeamBuilder({ onSave, onNavigate }) {
 
   const handleSelect = useCallback((pokemon) => {
     if (targetSlot === null) return;
-    setTeam(prev => { const n = [...prev]; n[targetSlot] = pokemon; return n; });
+    // preserve custom fields if replacing
+    setTeam(prev => { const n = [...prev]; n[targetSlot] = { ...pokemon, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] }; return n; });
     setSearchOpen(false); setTargetSlot(null); setSelectedPk(pokemon);
     setCreatedBy('manual');
   }, [targetSlot]);
@@ -47,6 +51,69 @@ export default function TeamBuilder({ onSave, onNavigate }) {
     setCreatedBy('manual');
   }, [team]);
 
+  // Load initialTeam if editing
+  useEffect(() => {
+    if (!initialTeam) return;
+    (async () => {
+      try {
+        setTeam(Array(TEAM_SIZE).fill(null));
+        setTeamName(initialTeam.name || '');
+        setCreatedBy(initialTeam.created_by || 'manual');
+        // fetch full pokemon details for each slot
+        const arr = Array(TEAM_SIZE).fill(null);
+        for (const pk of (initialTeam.pokemon || [])) {
+          try {
+            const name = pk.name || pk.pokemon_id;
+            const backend = await getBackendPokemon(name);
+            const api = await getPokemon(String(name).toLowerCase());
+            const full = backend?.data?.pokemon || backend || { name };
+            if (api) { full.sprites = api.sprites; full.types = api.types; full.stats = api.stats; }
+            // attach ability/item/moves from team payload
+            full.ability = pk.ability || pk.ability_name || null;
+            full.item = pk.item || pk.item_name || null;
+            full.moves = (pk.moves || []).map(m => (m?.name || m));
+            arr[(pk.slot || 1) - 1] = full;
+          } catch (e) {
+            // ignore per-pokemon failures
+          }
+        }
+        setTeam(arr);
+      } catch (e) {
+        console.error('Error loading initial team', e.message || e);
+      }
+    })();
+  }, [initialTeam]);
+
+  // load moves/items/abilities lists
+  useEffect(() => {
+    (async () => {
+      try {
+        // items are global
+        const it = await getItemsList();
+        setItemsOptions(it?.data?.items || []);
+      } catch (e) { console.debug('getItemsList failed', e.message || e); }
+    })();
+  }, []);
+
+  // When a pokemon is selected for editing, load its specific abilities and moves
+  useEffect(() => {
+    if (!selectedPk?.name) return;
+    (async () => {
+      try {
+        const resp = await getBackendPokemon(selectedPk.name);
+        const pk = resp?.data?.pokemon || resp || null;
+        if (!pk) return;
+        // map abilities and moves to options
+        const aopts = (pk.abilities || []).map(a => ({ id: a.ability?.id || null, name: a.ability?.name || a.ability }));
+        const mopts = (pk.moves || []).map(m => ({ id: m.id, name: m.name }));
+        setAbilitiesOptions(aopts);
+        setMovesOptions(mopts);
+      } catch (e) {
+        console.debug('failed to load pokemon-specific data', e.message || e);
+      }
+    })();
+  }, [selectedPk]);
+
   /* ── Guardar (solo usuarios registrados) ── */
   const handleSave = async () => {
     if (!user) { setAuthPrompt('guardar'); return; }
@@ -54,7 +121,17 @@ export default function TeamBuilder({ onSave, onNavigate }) {
     if (filledCount === 0) { alert('Tu equipo está vacío.'); return; }
     setSaving(true);
     try {
-      await onSave?.({ name: teamName, created_by: createdBy, pokemon: team.filter(Boolean).map(pk => ({ id: pk.id, name: pk.name, types: pk.types.map(t => t.type.name) })) });
+      // prepare pokemon payload including ability/item/moves (names or ids)
+      const payloadPokemons = team.filter(Boolean).map((pk, idx) => ({
+        id: pk.id || pk.pokemon_id,
+        name: pk.name,
+        slot: idx+1,
+        ability: pk.ability || null,
+        item: pk.item || null,
+        spread_id: pk.spread_id || null,
+        moves: Array.isArray(pk.moves) ? pk.moves.map(m => (typeof m === 'object' ? (m.id || m.name) : m)) : [],
+      }));
+      await onSave?.({ name: teamName, created_by: createdBy, pokemon: payloadPokemons });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       alert('No se pudo guardar el equipo.');
@@ -168,7 +245,9 @@ export default function TeamBuilder({ onSave, onNavigate }) {
               <PokemonSlot key={i} pokemon={pokemon} slotNumber={i+1}
                 onAdd={() => openSearch(i)}
                 onRemove={() => handleRemove(i)}
-                onEdit={() => pokemon && setSelectedPk(pokemon)}
+                onEdit={() => {
+                  if (pokemon) { setSelectedPk(pokemon); setTargetSlot(i); }
+                }}
               />
             ))}
           </div>
@@ -200,6 +279,41 @@ export default function TeamBuilder({ onSave, onNavigate }) {
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', borderTop:'1px solid var(--color-pk-border)', paddingTop:'6px', marginTop:'2px' }}>
                   <span style={{ color:'var(--color-pk-muted)', fontFamily:'var(--font-heading)', fontWeight:700 }}>BST</span>
                   <span style={{ color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{(selectedPk.stats || []).reduce((a,s) => a + (s?.base_stat || 0), 0)}</span>
+                </div>
+              </div>
+              {/* Editable fields: ability, item, moves */}
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Habilidad</label>
+                <select value={selectedPk.ability || ''} onChange={(e) => {
+                  const v = e.target.value || null; setSelectedPk(prev => ({ ...prev, ability: v })); setTeam(prev => { const n = [...prev]; if (targetSlot !== null) n[targetSlot] = { ...n[targetSlot], ability: v }; return n; });
+                }} className="pk-input">
+                  <option value="">(ninguna)</option>
+                  {abilitiesOptions.map(a => (<option key={a.id} value={a.name}>{a.name}</option>))}
+                </select>
+
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Objeto</label>
+                <select value={selectedPk.item || ''} onChange={(e) => {
+                  const v = e.target.value || null; setSelectedPk(prev => ({ ...prev, item: v })); setTeam(prev => { const n = [...prev]; if (targetSlot !== null) n[targetSlot] = { ...n[targetSlot], item: v }; return n; });
+                }} className="pk-input">
+                  <option value="">(ninguno)</option>
+                  {itemsOptions.map(it => (<option key={it.id} value={it.name}>{it.name}</option>))}
+                </select>
+
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Moves (máx.4)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {Array.from({ length: 4 }).map((_, mi) => (
+                    <select key={mi} value={(selectedPk.moves && selectedPk.moves[mi]) || ''} onChange={(e) => {
+                      const v = e.target.value || '';
+                      setSelectedPk(prev => ({ ...prev, moves: Object.assign([], (prev.moves||[]), { [mi]: v }) }));
+                      setTeam(prev => { const n = [...prev]; if (targetSlot !== null) {
+                        const arr = n[targetSlot] ? [...(n[targetSlot].moves||[])] : [];
+                        arr[mi] = v; n[targetSlot] = { ...n[targetSlot], moves: arr };
+                      } return n; });
+                    }} className="pk-input">
+                      <option value="">(vacío)</option>
+                      {movesOptions.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}
+                    </select>
+                  ))}
                 </div>
               </div>
             </div>

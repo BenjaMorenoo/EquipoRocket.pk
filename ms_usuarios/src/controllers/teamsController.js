@@ -159,3 +159,35 @@ export const deleteTeam = async (req, res) => {
     return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
   }
 };
+
+export const addFeedback = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = req.user.id;
+    const { type } = req.body; // 'good' or 'bad'
+    if (!['good', 'bad'].includes(type)) return res.status(400).json({ success:false, error: 'INVALID_TYPE' });
+    // verify team exists
+    const t = await TeamRepo.findById(teamId);
+    if (!t) return res.status(404).json({ success:false, error: 'TEAM_NOT_FOUND' });
+    // allow any authenticated user to give feedback; adjust ownership check if needed
+    const fb = await TeamRepo.addFeedback(teamId, userId, type);
+    return res.json({ success:true, data: { feedback: fb } });
+  } catch (e) {
+    console.error('[ms_usuarios] addFeedback', e.message || e);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+export const getFeedback = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const t = await TeamRepo.findById(teamId);
+    if (!t) return res.status(404).json({ success:false, error: 'TEAM_NOT_FOUND' });
+    // anyone can read feedback counts
+    const counts = await TeamRepo.getFeedbackCounts(teamId);
+    return res.json({ success:true, data: counts });
+  } catch (e) {
+    console.error('[ms_usuarios] getFeedback', e.message || e);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};

@@ -10,7 +10,7 @@ import UserProfile  from './pages/UserProfile';
 import AdminPanel   from './pages/AdminPanel';
 import MisPokemon   from './pages/MisPokemon';
 import Simulations  from './pages/Simulations';
-import { createTeam } from './services/api';
+import { createTeam, updateTeam } from './services/api';
 
 function PlaceholderPage({ title, icon, description }) {
   return (
@@ -58,7 +58,12 @@ function AppShell() {
     try {
       console.log('[TeamBuilder] Guardando equipo:', teamData);
       // createTeam from API
-      const res = await createTeam(teamData);
+      let res;
+      if (editingTeam && editingTeam.id) {
+        res = await updateTeam(editingTeam.id, teamData);
+      } else {
+        res = await createTeam(teamData);
+      }
       console.log('Equipo guardado', res);
       setCurrentPage('teams');
     } catch (e) {

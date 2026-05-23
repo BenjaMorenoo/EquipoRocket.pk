@@ -32,6 +32,11 @@ export const getPokemon = async (req, res) => {
     const aRes = await query(aQ, [p.id]);
     const abilities = aRes.rows.map(r => ({ ability: { name: r.name }, is_hidden: r.is_hidden }));
 
+    // load moves for this pokemon
+    const mQ = `SELECT m.id, m.name FROM moves m JOIN pokemon_moves pm ON pm.move_id = m.id WHERE pm.pokemon_id = $1 ORDER BY m.name`;
+    const mRes = await query(mQ, [p.id]);
+    const moves = mRes.rows.map(r => ({ id: r.id, name: r.name }));
+
     // construct stats array similar to PokeAPI minimal
     const stats = [
       { stat: { name: 'hp' }, base_stat: p.hp ?? 0 },
@@ -53,6 +58,7 @@ export const getPokemon = async (req, res) => {
       speed: p.speed,
       types,
       abilities,
+      moves,
       stats,
     };
 
