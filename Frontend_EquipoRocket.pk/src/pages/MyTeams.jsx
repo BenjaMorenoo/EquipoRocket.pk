@@ -92,29 +92,29 @@ function TeamCard({ team, onEdit, onDelete }) {
   return (
     <div
       className="pk-card"
-      style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}
+      style={{ padding: 'clamp(14px, 3vw, 20px)', display: 'flex', flexDirection: 'column', gap: '14px' }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ flex: 1, minWidth: '200px' }}>
           <h3 style={{
             fontFamily: 'var(--font-heading)',
             fontWeight: 700,
-            fontSize: '18px',
+            fontSize: 'clamp(16px, 3vw, 18px)',
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             margin: '0 0 4px',
           }}>
             {team.name}
           </h3>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{
               background: 'rgba(245,158,11,0.12)',
               border: '1px solid rgba(245,158,11,0.3)',
               color: 'var(--color-pk-yellow)',
               borderRadius: '5px',
               padding: '2px 8px',
-              fontSize: '10px',
+              fontSize: '9px',
               fontFamily: 'var(--font-heading)',
               fontWeight: 700,
               letterSpacing: '0.08em',
@@ -128,7 +128,7 @@ function TeamCard({ team, onEdit, onDelete }) {
                   color: 'var(--color-pk-blue)',
                   borderRadius: '5px',
                   padding: '2px 8px',
-                  fontSize: '10px',
+                  fontSize: '9px',
                   fontFamily: 'var(--font-heading)',
                   fontWeight: 700,
                   letterSpacing: '0.08em',
@@ -140,27 +140,27 @@ function TeamCard({ team, onEdit, onDelete }) {
                   color: 'var(--color-pk-muted)',
                   borderRadius: '5px',
                   padding: '2px 8px',
-                  fontSize: '10px',
+                  fontSize: '9px',
                   fontFamily: 'var(--font-heading)',
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                 }}>Manual</span>
               )}
-            <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>
+            <span style={{ fontSize: 'clamp(10px, 1.5vw, 11px)', color: 'var(--color-pk-muted)' }}>
               {new Date(team.createdAt).toLocaleDateString('es-CL')}
             </span>
-            <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>
+            <span style={{ fontSize: 'clamp(10px, 1.5vw, 11px)', color: 'var(--color-pk-muted)' }}>
               {team.pokemon.length}/6 Pokémon
             </span>
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           <button
             className="pk-btn pk-btn-secondary"
             onClick={() => onEdit(team)}
-            style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ padding: 'clamp(5px, 1vw, 6px) clamp(10px, 2vw, 14px)', fontSize: 'clamp(11px, 1.5vw, 12px)', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <FaEdit /> Editar
           </button>
@@ -172,8 +172,8 @@ function TeamCard({ team, onEdit, onDelete }) {
               borderRadius: '8px',
               color: 'var(--color-pk-muted)',
               cursor: 'pointer',
-              padding: '6px 10px',
-              fontSize: '12px',
+              padding: 'clamp(5px, 1vw, 6px) clamp(8px, 1.5vw, 10px)',
+              fontSize: 'clamp(11px, 1.5vw, 12px)',
               transition: 'all 0.15s ease',
             }}
             onMouseEnter={(e) => {
@@ -232,7 +232,7 @@ function TeamCard({ team, onEdit, onDelete }) {
       </div>
 
       {/* Feedback buttons placed below sprites (only in Mis Equipos) */}
-      <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           className="pk-btn pk-btn-secondary"
           onClick={async () => {
@@ -245,12 +245,12 @@ function TeamCard({ team, onEdit, onDelete }) {
               alert('No se pudo registrar la victoria');
             }
           }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: 'clamp(5px, 1vw, 6px) clamp(8px, 1.5vw, 10px)', fontSize: 'clamp(11px, 1.5vw, 12px)' }}
         >
           <FaArrowUp /> Victorias
         </button>
         <div style={{ marginLeft: 6 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 'clamp(12px, 1.5vw, 13px)' }}>
             <FaArrowUp style={{ opacity: 0.95 }} />
             {feedbackCounts.wins}
           </span>
@@ -268,12 +268,12 @@ function TeamCard({ team, onEdit, onDelete }) {
               alert('No se pudo registrar la derrota');
             }
           }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: 'clamp(5px, 1vw, 6px) clamp(8px, 1.5vw, 10px)', fontSize: 'clamp(11px, 1.5vw, 12px)' }}
         >
           <FaArrowDown /> Derrotas
         </button>
         <div style={{ marginLeft: 6 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 'clamp(12px, 1.5vw, 13px)' }}>
             <FaArrowDown style={{ opacity: 0.95 }} />
             {feedbackCounts.loses}
           </span>
@@ -325,7 +325,7 @@ export default function MyTeams({ onNavigateToBuilder }) {
   }, []);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 24px 60px' }}>
+    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
 
       {/* Header */}
       <div className="fade-up fade-up-1" style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>

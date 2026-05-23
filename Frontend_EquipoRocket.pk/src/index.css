@@ -20,6 +20,11 @@
   --color-pk-text:      #e2e8f0;
   --color-pk-muted:     #4e6490;
   --color-pk-subtle:    #8ba0c8;
+  
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
 }
 
 *, *::before, *::after {
@@ -242,3 +247,203 @@ h1, h2, h3, .font-heading {
 /* Recharts custom */
 .recharts-text { fill: var(--color-pk-subtle) !important; font-family: var(--font-body) !important; font-size: 12px !important; }
 .recharts-polar-angle-axis-tick-value { font-size: 11px !important; }
+
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE MEDIA QUERIES
+   ════════════════════════════════════════════════════════════════ */
+
+/* Mobile - Small phones (320px to 640px) */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Hide desktop navbar elements on mobile */
+  .navbar-desktop {
+    display: none !important;
+  }
+
+  .navbar-mobile {
+    display: flex !important;
+  }
+
+  .pk-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .pk-btn-primary {
+    padding: 10px 16px;
+  }
+
+  .pk-btn-secondary {
+    padding: 10px 16px;
+  }
+
+  .pk-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .modal-content {
+    width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+  h1 {
+    font-size: clamp(20px, 5vw, 28px) !important;
+  }
+
+  h2 {
+    font-size: clamp(16px, 4vw, 22px) !important;
+  }
+
+  h3 {
+    font-size: clamp(14px, 3.5vw, 18px) !important;
+  }
+
+  /* Grid layouts - stack on mobile */
+  [style*="grid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Flex wrapping */
+  [style*="display: flex"] {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Card padding */
+  .pk-card {
+    padding: 16px !important;
+    margin-bottom: 12px;
+  }
+}
+
+/* Tablet - Medium devices (641px to 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+
+  .pk-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 4vw, 36px) !important;
+  }
+
+  h2 {
+    font-size: clamp(18px, 3.5vw, 24px) !important;
+  }
+
+  h3 {
+    font-size: clamp(16px, 3vw, 20px) !important;
+  }
+
+  /* Grid should be 2 columns on tablet */
+  [style*="gridTemplateColumns: repeat(auto-fit"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .modal-content {
+    width: 85vw;
+    max-height: 85vh;
+  }
+}
+
+/* Desktop and large screens (1025px+) */
+@media (min-width: 1025px) {
+  .navbar-mobile {
+    display: none !important;
+  }
+}
+
+/* Extra small phones (320px to 480px) */
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  .pk-btn {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+
+  .pk-card {
+    padding: 12px !important;
+    border-radius: 12px;
+  }
+
+  .pk-input {
+    padding: 8px 12px;
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: clamp(18px, 6vw, 24px) !important;
+  }
+
+  h2 {
+    font-size: clamp(14px, 4.5vw, 18px) !important;
+  }
+
+  /* Remove horizontal padding on small screens */
+  [style*="padding:"] {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 600px) {
+  .pk-card {
+    padding: 12px !important;
+  }
+
+  .pk-btn {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .pk-btn,
+  button,
+  .pk-card {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .pk-btn:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Dark mode - already default, but support system preference */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-pk-bg);
+    color: var(--color-pk-text);
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High resolution screens */
+@media (min-width: 1440px) {
+  body {
+    font-size: 15px;
+  }
+}

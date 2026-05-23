@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import { useState, useRef, useEffect } from 'react';
-import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial, FaChartBar } from 'react-icons/fa';
+import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial, FaChartBar, FaBars } from 'react-icons/fa';
 import logo from '../assets/logo.png';
 
 const NAV_LINKS = [
@@ -48,7 +48,7 @@ function DropItem({ icon, label, onClick, danger, accent }) {
   );
 }
 
-function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
+function ProfileDropdown({ user, onNavigate, onLogout, isPreview, isMobile=false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -59,6 +59,19 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
 
   const initials = user?.username?.slice(0,2).toUpperCase() ?? 'PK';
   const isAdmin  = user?.is_admin && !isPreview;
+
+  if (isMobile) {
+    return (
+      <div style={{ width: '100%' }}>
+        <DropItem icon={<FaUser />} label="Mi Perfil" onClick={() => { onNavigate('profile'); }} />
+        {user?.is_admin && !isPreview && (
+          <DropItem icon={<FaCog />} label="Panel Admin" onClick={() => { onNavigate('admin'); }} accent="var(--color-pk-yellow)" />
+        )}
+        <div style={{ margin:'5px 6px', borderTop:'1px solid var(--color-pk-border)' }} />
+        <DropItem icon={<FaDoorOpen />} label="Cerrar sesión" onClick={() => { onLogout(); }} danger />
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} style={{ position:'relative' }}>
@@ -108,12 +121,24 @@ function ProfileDropdown({ user, onNavigate, onLogout, isPreview }) {
 }
 
 export default function Navbar({ currentPage, onNavigate, user, onLogout, isPreview=false, onExitPreview, onLoginClick }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu when navigation happens
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [currentPage]);
+
+  const handleNavigate = (page) => {
+    onNavigate(page);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <>
       {isPreview && (
-        <div style={{ background:'rgba(59,130,246,0.1)', borderBottom:'1px solid rgba(59,130,246,0.25)', padding:'7px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:'12px' }}>
+        <div style={{ background:'rgba(59,130,246,0.1)', borderBottom:'1px solid rgba(59,130,246,0.25)', padding:'7px 16px', display:'flex', alignItems:'center', justifyContent:'center', gap:'12px', flexWrap: 'wrap' }}>
           <span style={{ fontSize:'12px', color:'var(--color-pk-blue)', fontFamily:'var(--font-heading)', fontWeight:600, letterSpacing:'0.05em', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FaEye /> MODO VISTA PREVIA — Estás viendo la app como usuario normal
+            <FaEye /> MODO VISTA PREVIA
           </span>
           <button onClick={onExitPreview} style={{ background:'rgba(59,130,246,0.2)', border:'1px solid rgba(59,130,246,0.4)', borderRadius:'6px', color:'var(--color-pk-blue)', cursor:'pointer', padding:'3px 12px', fontSize:'11px', fontFamily:'var(--font-heading)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:8 }}>
             Salir <FaTimes />
@@ -121,30 +146,120 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout, isPrev
         </div>
       )}
       <nav style={{ position:'sticky', top:0, zIndex:40, background:'rgba(6,12,24,0.88)', backdropFilter:'blur(16px)', borderBottom:`1px solid ${isPreview ? 'rgba(59,130,246,0.2)' : 'var(--color-pk-border)'}` }}>
-        <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 24px', height:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'20px' }}>
-          <button onClick={() => onNavigate('home')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
+        <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'0 16px', minHeight:'60px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px', flexWrap: 'wrap' }}>
+          
+          {/* Logo */}
+          <button onClick={() => handleNavigate('home')} style={{ display:'flex', alignItems:'center', gap:'10px', background:'none', border:'none', cursor:'pointer', padding:0, flexShrink:0 }}>
             <img src={logo} alt='EquipoRocket' style={{ width:'34px', height:'34px', flexShrink:0 }} />
-            <div style={{ lineHeight:1 }}>
+            <div style={{ lineHeight:1, display: 'none' }}>
               <div style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'17px', letterSpacing:'0.08em', color:'var(--color-pk-text)', textTransform:'uppercase' }}>Equipo<span style={{ color:'var(--color-pk-red)' }}>Rocket</span></div>
               <div style={{ fontSize:'8px', color:'var(--color-pk-muted)', letterSpacing:'0.2em', textTransform:'uppercase' }}>Pokémon Champions</div>
             </div>
+            <style>{`
+              @media (min-width: 768px) {
+                button[style*="display:'flex'"][style*="gap:'10px'"] div {
+                  display: block !important;
+                }
+              }
+            `}</style>
           </button>
-          <div style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center' }}>
+
+          {/* Desktop Navigation */}
+          <div className="navbar-desktop" style={{ display:'flex', alignItems:'center', gap:'2px', flex:1, justifyContent:'center', minWidth: 0 }}>
             {NAV_LINKS
               .filter(link => !link.admin || (user && user.is_admin))
-              .map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id || (link.id.startsWith('admin:') && currentPage==='admin')} onNavigate={onNavigate} />)}
+              .map(link => <NavBtn key={link.id} link={link} active={currentPage===link.id || (link.id.startsWith('admin:') && currentPage==='admin')} onNavigate={handleNavigate} />)}
           </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
-            <button onClick={() => onNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
+
+          {/* Desktop Right Actions */}
+          <div className="navbar-desktop" style={{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 }}>
+            <button onClick={() => handleNavigate('builder')} className="pk-btn pk-btn-primary" style={{ padding:'7px 16px', fontSize:'12px', display:'flex', alignItems:'center', gap:8 }}><FaPlus /> Nuevo Equipo</button>
             {user
-              ? <ProfileDropdown user={user} onNavigate={onNavigate} onLogout={onLogout} isPreview={isPreview} />
+              ? <ProfileDropdown user={user} onNavigate={handleNavigate} onLogout={onLogout} isPreview={isPreview} />
               : <div style={{ display:'flex', gap:'8px' }}>
-                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaBolt /> Iniciar Sesión</button>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaBolt /> Iniciar</button>
                   <button onClick={onLoginClick} className="pk-btn pk-btn-primary"   style={{ padding:'7px 14px', fontSize:'12px', display:'flex', gap:8, alignItems:'center' }}><FaUserPlus /> Registrarse</button>
                 </div>
             }
           </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            className="navbar-mobile"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{ 
+              background: mobileMenuOpen ? 'rgba(220,38,38,0.12)' : 'none',
+              border: mobileMenuOpen ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
+              borderRadius: '8px',
+              color: mobileMenuOpen ? 'var(--color-pk-red-light)' : 'var(--color-pk-subtle)',
+              cursor: 'pointer',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '18px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {mobileMenuOpen ? <FaTimes /> : <FaBars />}
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="navbar-mobile" style={{ 
+            background: 'var(--color-pk-surface)',
+            borderTop: '1px solid var(--color-pk-border)',
+            padding: '12px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}>
+            {NAV_LINKS
+              .filter(link => !link.admin || (user && user.is_admin))
+              .map(link => (
+                <button
+                  key={link.id}
+                  onClick={() => handleNavigate(link.id)}
+                  style={{
+                    width: '100%',
+                    background: currentPage === link.id ? 'rgba(220,38,38,0.12)' : 'none',
+                    border: currentPage === link.id ? '1px solid rgba(220,38,38,0.3)' : '1px solid transparent',
+                    borderRadius: '8px',
+                    color: currentPage === link.id ? 'var(--color-pk-red-light)' : 'var(--color-pk-subtle)',
+                    cursor: 'pointer',
+                    padding: '10px 12px',
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>{link.icon}</span> {link.label}
+                </button>
+              ))}
+            <div style={{ margin:'8px 0', borderTop:'1px solid var(--color-pk-border)' }} />
+            <button 
+              onClick={() => handleNavigate('builder')} 
+              className="pk-btn pk-btn-primary" 
+              style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', alignItems:'center', gap:8, justifyContent: 'center' }}
+            >
+              <FaPlus /> Nuevo Equipo
+            </button>
+            {user
+              ? <ProfileDropdown user={user} onNavigate={handleNavigate} onLogout={onLogout} isPreview={isPreview} isMobile={true} />
+              : <div style={{ display:'flex', gap:'8px', flexDirection: 'column' }}>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-secondary" style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', gap:8, alignItems:'center', justifyContent: 'center' }}><FaBolt /> Iniciar Sesión</button>
+                  <button onClick={onLoginClick} className="pk-btn pk-btn-primary" style={{ width: '100%', padding:'10px 12px', fontSize:'12px', display:'flex', gap:8, alignItems:'center', justifyContent: 'center' }}><FaUserPlus /> Registrarse</button>
+                </div>
+            }
+          </div>
+        )}
       </nav>
     </>
   );

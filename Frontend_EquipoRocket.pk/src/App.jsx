@@ -14,11 +14,11 @@ import { createTeam, updateTeam } from './services/api';
 
 function PlaceholderPage({ title, icon, description }) {
   return (
-    <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'80px 24px', textAlign:'center' }}>
-      <div style={{ fontSize:'56px', marginBottom:'20px' }}>{icon}</div>
-      <h1 style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'32px', letterSpacing:'0.06em', textTransform:'uppercase', margin:'0 0 12px' }}>{title}</h1>
-      <p style={{ color:'var(--color-pk-muted)', fontSize:'15px', maxWidth:'400px', margin:'0 auto 32px' }}>{description}</p>
-      <div style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:'10px', padding:'10px 20px', color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:600, fontSize:'13px', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+    <div style={{ maxWidth:'1440px', margin:'0 auto', padding:'clamp(40px, 8vw, 80px) 16px', textAlign:'center' }}>
+      <div style={{ fontSize:'clamp(36px, 8vw, 56px)', marginBottom:'20px' }}>{icon}</div>
+      <h1 style={{ fontFamily:'var(--font-heading)', fontWeight:700, fontSize:'clamp(24px, 5vw, 32px)', letterSpacing:'0.06em', textTransform:'uppercase', margin:'0 0 12px' }}>{title}</h1>
+      <p style={{ color:'var(--color-pk-muted)', fontSize:'clamp(13px, 2vw, 15px)', maxWidth:'400px', margin:'0 auto 32px' }}>{description}</p>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'rgba(245,158,11,0.1)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:'10px', padding:'10px 20px', color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:600, fontSize:'clamp(11px, 1.5vw, 13px)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
         🚧 En desarrollo
       </div>
     </div>

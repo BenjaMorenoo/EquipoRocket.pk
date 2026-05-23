@@ -152,21 +152,21 @@ export default function Home({ onNavigate }) {
     return () => { mounted = false; };
   }, []);
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px 80px' }}>
+    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: 'clamp(20px, 3vw, 32px) clamp(12px, 3vw, 24px) clamp(40px, 8vw, 80px)' }}>
 
       {/* ── Hero ── */}
       <div className="fade-up fade-up-1" style={{
-        textAlign: 'center', padding: '48px 20px 40px',
+        textAlign: 'center', padding: 'clamp(24px, 6vw, 48px) 20px clamp(20px, 5vw, 40px)',
         background: 'radial-gradient(ellipse at top, rgba(220,38,38,0.06) 0%, transparent 60%)',
-        borderRadius: '20px', marginBottom: '40px',
+        borderRadius: '20px', marginBottom: 'clamp(24px, 5vw, 40px)',
       }}>
         <div style={{ marginBottom: '8px' }}>
-          <img src={logo} alt="EquipoRocket" style={{ width: 'clamp(120px, 16vw, 260px)', height: 'auto', display: 'block', margin: '0 auto' }} />
+          <img src={logo} alt="EquipoRocket" style={{ width: 'clamp(100px, 20vw, 260px)', height: 'auto', display: 'block', margin: '0 auto' }} />
         </div>
 
         <h1 style={{
           fontFamily: 'var(--font-heading)', fontWeight: 700,
-          fontSize: 'clamp(26px, 4.5vw, 44px)', letterSpacing: '0.06em',
+          fontSize: 'clamp(24px, 6vw, 44px)', letterSpacing: '0.06em',
           textTransform: 'uppercase', margin: '4px 0 10px', lineHeight: 1.05, color: 'var(--color-pk-text)'
         }}>
           Equipo<span style={{ color: 'var(--color-pk-red)' }}>Rocket</span>.pk
@@ -176,60 +176,60 @@ export default function Home({ onNavigate }) {
           display: 'inline-flex', alignItems: 'center', gap: '8px',
           background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)',
           borderRadius: '20px', padding: '5px 16px', marginBottom: '20px',
-          fontSize: '11px', fontFamily: 'var(--font-heading)', fontWeight: 700,
+          fontSize: 'clamp(10px, 2vw, 11px)', fontFamily: 'var(--font-heading)', fontWeight: 700,
           letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-pk-red-light)',
         }}>
           ● Temporada 2026 en curso
         </div>
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('builder')} style={{ padding: '13px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FaPlus /> Crear equipo ahora
+          <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('builder')} style={{ padding: 'clamp(10px, 2vw, 13px) clamp(16px, 4vw, 28px)', fontSize: 'clamp(13px, 2vw, 15px)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FaPlus /> Crear equipo
           </button>
           {!user && (
-            <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate('auth')} style={{ padding: '13px 28px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FaUserPlus /> Registrarse gratis
+            <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate('auth')} style={{ padding: 'clamp(10px, 2vw, 13px) clamp(16px, 4vw, 28px)', fontSize: 'clamp(13px, 2vw, 15px)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FaUserPlus /> Registrarse
             </button>
           )}
         </div>
 
         {!user && (
-          <p style={{ marginTop: '14px', fontSize: '12px', color: 'var(--color-pk-muted)' }}>
+          <p style={{ marginTop: '14px', fontSize: 'clamp(11px, 2vw, 12px)', color: 'var(--color-pk-muted)' }}>
             ¿Ya tienes cuenta?{' '}
-            <button onClick={() => onNavigate('auth')} style={{ background: 'none', border: 'none', color: 'var(--color-pk-red-light)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+            <button onClick={() => onNavigate('auth')} style={{ background: 'none', border: 'none', color: 'var(--color-pk-red-light)', cursor: 'pointer', fontSize: 'clamp(11px, 2vw, 12px)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '2px' }}>
               Inicia sesión
-            </button>{' '}para guardar tus equipos y exportarlos.
+            </button>
           </p>
         )}
       </div>
 
       {/* ── Stats globales ── */}
-      <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '14px', marginBottom: '48px' }}>
+      <div className="fade-up fade-up-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 'clamp(12px, 2vw, 14px)', marginBottom: 'clamp(32px, 6vw, 48px)' }}>
         {MOCK_STATS.map(s => (
-          <div key={s.label} className="pk-card" style={{ padding: '18px 20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '28px', marginBottom: '6px' }}>{s.icon}</div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '26px', color: 'var(--color-pk-red)', lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: '11px', color: 'var(--color-pk-muted)', fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
+          <div key={s.label} className="pk-card" style={{ padding: 'clamp(12px, 3vw, 18px)', textAlign: 'center' }}>
+            <div style={{ fontSize: 'clamp(24px, 5vw, 28px)', marginBottom: '6px' }}>{s.icon}</div>
+            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 'clamp(20px, 4vw, 26px)', color: 'var(--color-pk-red)', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 'clamp(10px, 1.5vw, 11px)', color: 'var(--color-pk-muted)', fontFamily: 'var(--font-heading)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: '4px' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* ── Main content grid ── */}
       <div className="fade-up fade-up-3">
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 'clamp(16px, 3.5vw, 18px)', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
               <FaFire style={{ marginRight: 8 }} /> Pokémon <span style={{ color: 'var(--color-pk-red)' }}>más usados</span>
             </h2>
-            <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>VGC 2026 — Temporada activa</span>
+            <span style={{ fontSize: 'clamp(10px, 1.5vw, 11px)', color: 'var(--color-pk-muted)' }}>VGC 2026 — Temporada activa</span>
           </div>
 
           {/* Bar chart */}
-          <div className="pk-card" style={{ padding: '16px', marginBottom: '16px' }}>
-            <div style={{ width: '100%', height: '200px' }}>
+          <div className="pk-card" style={{ padding: 'clamp(12px, 2vw, 16px)', marginBottom: '16px', overflowX: 'auto' }}>
+            <div style={{ width: '100%', minHeight: '200px', height: 'clamp(160px, 40vw, 280px)' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topPokemons} layout="vertical" margin={{ top: 0, right: 40, left: 80, bottom: 0 }}>
+                <BarChart data={topPokemons} layout="vertical" margin={{ top: 0, right: 40, left: 'auto', bottom: 0 }}>
                   <XAxis type="number" domain={[0, 45]} tick={{ fill: 'var(--color-pk-muted)', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-pk-subtle)', fontSize: 11, fontFamily: 'var(--font-body)' }} tickLine={false} axisLine={false} tickFormatter={n => n.replace(/-/g,' ').split(' ').map(w => w[0]?.toUpperCase()+w.slice(1)).join(' ')} width={78} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-pk-subtle)', fontSize: 10, fontFamily: 'var(--font-body)' }} tickLine={false} axisLine={false} tickFormatter={n => n.replace(/-/g,' ').split(' ').map(w => w[0]?.toUpperCase()+w.slice(1)).join(' ')} width={60} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                   <Bar dataKey="usage" radius={[0, 4, 4, 0]} barSize={14}>
                     {topPokemons.map((p) => (
