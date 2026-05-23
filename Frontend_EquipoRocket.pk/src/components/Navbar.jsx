@@ -8,7 +8,6 @@ const NAV_LINKS = [
   { id: 'mypokemon', label: 'Mis Pokémon', icon: <FaBolt /> },
   { id: 'sim',       label: 'Simulaciones', icon: <FaVial /> },
   { id: 'builder',   label: 'Constructor', icon: <FaWrench /> },
-  { id: 'dex',       label: 'Pokédex',     icon: <FaBook /> },
   { id: 'ranking',   label: 'Rankings',    icon: <FaTrophy /> },
 ];
 
