@@ -16,13 +16,6 @@ import logo from '../assets/logo.png';
 /* ── Mock data (reemplazar con llamadas al backend cuando esté listo) ────── */
 // will be loaded from backend (ms_pokemon)
 
-const MOCK_TOP_TEAMS = [
-  { id: 1, name: 'Hyper Offense VGC',    format: 'VGC',  uses: 412,  pokemon: ['garchomp','flutter-mane','iron-hands','incineroar','rillaboom','tornadus'] },
-  { id: 2, name: 'Sun Tailwind Balance', format: 'VGC',  uses: 387,  pokemon: ['torkoal','flutter-mane','landorus-therian','incineroar','urshifu-single-strike','rillaboom'] },
-  { id: 3, name: 'TR Dragon',            format: 'OU',   uses: 341,  pokemon: ['garchomp','kingambit','iron-hands','dragapult','gholdengo','glimmora'] },
-  { id: 4, name: 'Rain Offense',         format: 'OU',   uses: 298,  pokemon: ['pelipper','barraskewda','kingdra','urshifu-single-strike','iron-bundle','swampert'] },
-];
-
 const MOCK_STATS = [
   { label: 'Pokémon registrados', value: '1,025', icon: <FaDatabase /> },
   { label: 'Equipos creados',     value: '8,432', icon: <FaLayerGroup /> },
@@ -222,10 +215,7 @@ export default function Home({ onNavigate }) {
       </div>
 
       {/* ── Main content grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: '24px', alignItems: 'start' }}>
-
-        {/* LEFT: Top Pokémon ── */}
-        <div className="fade-up fade-up-3">
+      <div className="fade-up fade-up-3">
           <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
               <FaFire style={{ marginRight: 8 }} /> Pokémon <span style={{ color: 'var(--color-pk-red)' }}>más usados</span>
@@ -257,115 +247,9 @@ export default function Home({ onNavigate }) {
               <PokemonUsageCard key={pk.name} pokemon={pk} rank={i + 1} />
             ))}
           </div>
-        </div>
-
-        {/* RIGHT: Top Equipos ── */}
-        <div className="fade-up fade-up-4">
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '18px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
-              🏆 Equipos <span style={{ color: 'var(--color-pk-red)' }}>más usados</span>
-            </h2>
-            <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>Global</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {MOCK_TOP_TEAMS.map((team, i) => (
-              <div key={team.id} className="pk-card" style={{ padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                      <span style={{
-                        fontFamily: 'var(--font-heading)', fontWeight: 700,
-                        fontSize: '16px', letterSpacing: '0.04em',
-                      }}>
-                        {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`} {team.name}
-                      </span>
-                    </div>
-                    <span style={{
-                      background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-                      borderRadius: '5px', padding: '2px 8px',
-                      fontSize: '10px', fontFamily: 'var(--font-heading)', fontWeight: 700,
-                      letterSpacing: '0.08em', color: 'var(--color-pk-yellow)',
-                    }}>
-                      {team.format}
-                    </span>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '18px', color: 'var(--color-pk-red)' }}>{team.uses}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--color-pk-muted)' }}>usos</div>
-                  </div>
-                </div>
-
-                {/* Pokemon sprites row */}
-                <TeamSprites pokemon={team.pokemon} />
-              </div>
-            ))}
-          </div>
-
-          {/* CTA sin login */}
-          {!user && (
-            <div style={{
-              marginTop: '16px',
-              background: 'linear-gradient(135deg, rgba(220,38,38,0.08), rgba(59,130,246,0.06))',
-              border: '1px solid var(--color-pk-border-light)',
-              borderRadius: '14px', padding: '20px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 28, marginBottom: '8px' }}><FaGamepad /></div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 8px' }}>
-                ¿Listo para competir?
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--color-pk-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                Regístrate para guardar tus equipos y exportarlos en formato Showdown.
-              </p>
-              <button className="pk-btn pk-btn-primary" onClick={() => onNavigate('auth')} style={{ width: '100%', justifyContent: 'center', padding: '11px' }}>
-                <FaUserPlus /> Crear cuenta gratis
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
 }
 
-/* ── Sprites mini del equipo ─────────────────────────────────────────────── */
-function TeamSprites({ pokemon }) {
-  const [sprites, setSprites] = useState({});
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        await Promise.all(pokemon.map(async (name) => {
-          try {
-            const d = await getPokeApiPokemon(name);
-            if (!mounted) return;
-            setSprites(p => ({ ...p, [name]: d.sprites?.front_default || null }));
-          } catch (e) {
-            // ignore
-          }
-        }));
-      } catch (e) {
-        // ignore
-      }
-    })();
-    return () => { mounted = false; };
-  }, [pokemon]);
-
-  return (
-    <div style={{ display: 'flex', gap: '6px' }}>
-      {pokemon.map(name => (
-        <div key={name} style={{
-          width: '40px', height: '40px', borderRadius: '8px',
-          background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {sprites[name]
-            ? <img src={sprites[name]} alt={name} style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-            : <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-pk-border)' }} />
-          }
-        </div>
-      ))}
-    </div>
-  );
-}
