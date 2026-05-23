@@ -1,13 +1,13 @@
 // src/pages/UserProfile.jsx
-import { useState } from 'react';
-import { updateCurrentUser } from '../services/api';
+import { useState, useEffect } from 'react';
+import { updateCurrentUser, getTeams, verifyCurrentPassword } from '../services/api';
 import { FaLock, FaEdit, FaTimes, FaEye, FaEyeSlash, FaUnlock, FaSave, FaGlobe, FaMapMarkerAlt, FaBirthdayCake, FaCalendarAlt, FaCheck, FaExclamationTriangle, FaLayerGroup, FaPlus } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { validators } from '../utils/validators';
 import { REGIONS, COUNTRIES_BY_REGION, MONTHS } from '../utils/regions';
 import ConfirmModal from '../components/ConfirmModal';
 
-// Mock teams — replace with real API call when backend is ready
+// Mock teams — fallback
 const MOCK_TEAMS = [
   { id: 1, name: 'Dragon Storm',  format: 'OU',  pokemon: 6, updatedAt: '2026-05-10' },
   { id: 2, name: 'Sun & Steel',   format: 'VGC', pokemon: 4, updatedAt: '2026-05-12' },
@@ -97,9 +97,8 @@ function EditModal({ user, onSave, onClose }) {
     if (!gatePassword.trim()) { setGateErr('Ingresa tu contraseña actual.'); return; }
     setLoading(true);
     try {
-      // TODO: call verifyPassword API endpoint
-      await new Promise(r => setTimeout(r, 600));
-      // Mock: any non-empty password passes until backend is ready
+      // Call backend to verify current password
+      await verifyCurrentPassword(gatePassword);
       setStep(1);
     } catch {
       setGateErr('Contraseña incorrecta.');
@@ -130,7 +129,7 @@ function EditModal({ user, onSave, onClose }) {
         country_id: Number(form.country_id),
         fecha_nac:  `${form.year}-${form.month}-${String(form.day).padStart(2,'0')}`,
       };
-      await onSave(updated);
+      await onSave(updated, gatePassword);
     } catch (err) {
       setApiErr(err.message || 'Error al guardar cambios.');
     } finally {
@@ -260,10 +259,26 @@ export default function UserProfile({ onNavigate }) {
   const { user, login } = useAuth();
   const [editOpen, setEditOpen]   = useState(false);
   const [saved,    setSaved]      = useState(false);
+  const [teams, setTeams] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await getTeams();
+        const list = res?.data?.teams || [];
+        if (mounted) setTeams(list);
+      } catch (e) {
+        // fallback to mock data
+        if (mounted) setTeams(MOCK_TEAMS);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   if (!user) return null;
 
-  const handleSave = async (updated) => {
+  const handleSave = async (updated, currentPassword) => {
     try {
       const payload = {
         username: updated.username,
@@ -271,6 +286,7 @@ export default function UserProfile({ onNavigate }) {
         region_id: updated.region_id,
         country_id: updated.country_id,
         fecha_nac: updated.fecha_nac,
+        current_password: currentPassword,
       };
       const res = await updateCurrentUser(payload);
       const newUser = res?.data?.user;
@@ -365,7 +381,7 @@ export default function UserProfile({ onNavigate }) {
           <div className="pk-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '14px', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
-                <FaLayerGroup style={{ marginRight: 8 }} /> Mis Equipos <span style={{ color: 'var(--color-pk-muted)', fontWeight: 400 }}>({MOCK_TEAMS.length})</span>
+                <FaLayerGroup style={{ marginRight: 8 }} /> Mis Equipos <span style={{ color: 'var(--color-pk-muted)', fontWeight: 400 }}>({teams.length || MOCK_TEAMS.length})</span>
               </h3>
               <button className="pk-btn pk-btn-primary" onClick={() => onNavigate?.('builder')} style={{ padding: '6px 14px', fontSize: '12px', display:'flex', alignItems:'center', gap:8 }}>
                 <FaPlus /> Nuevo
@@ -373,7 +389,7 @@ export default function UserProfile({ onNavigate }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {MOCK_TEAMS.map(team => (
+              {(teams.length ? teams.slice(0,3) : MOCK_TEAMS).map(team => (
                 <div key={team.id} style={{
                   background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)',
                   borderRadius: '12px', padding: '14px 16px',
@@ -386,12 +402,12 @@ export default function UserProfile({ onNavigate }) {
                   <div>
                     <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em', marginBottom: '4px' }}>{team.name}</div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px', color: 'var(--color-pk-muted)' }}>
-                      <span style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', padding: '1px 7px', color: 'var(--color-pk-yellow)', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{team.format}</span>
-                      <span>{team.pokemon}/6 Pokémon</span>
+                            <span style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', padding: '1px 7px', color: 'var(--color-pk-yellow)', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{team.format}</span>
+                            <span>{(Array.isArray(team.pokemon) ? team.pokemon.length : (typeof team.pokemon === 'number' ? team.pokemon : (team.pokemon_count || (team.pokemons ? team.pokemons.length : 0))))}/6 Pokémon</span>
                       <span>{new Date(team.updatedAt).toLocaleDateString('es-CL')}</span>
                     </div>
                   </div>
-                  <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate?.('builder')} style={{ padding: '6px 12px', fontSize: '11px' }}>Ver →</button>
+                  <button className="pk-btn pk-btn-secondary" onClick={() => onNavigate?.('builder', team)} style={{ padding: '6px 12px', fontSize: '11px' }}>Ver →</button>
                 </div>
               ))}
             </div>

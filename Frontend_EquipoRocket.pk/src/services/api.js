@@ -118,6 +118,11 @@ export const updateCurrentUser = async (payload) => {
   return data;
 };
 
+export const verifyCurrentPassword = async (password) => {
+  const { data } = await backendAPI.post('/auth/verify-password', { password });
+  return data;
+};
+
 // Admin: list users and toggle active state
 export const getUsers = async () => {
   const { data } = await backendAPI.get('/auth/users');

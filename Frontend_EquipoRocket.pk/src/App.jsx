@@ -33,7 +33,7 @@ function AppShell() {
   const [previewMode,  setPreviewMode]  = useState(false);
   const [showAuth,     setShowAuth]     = useState(false); // modal de login/register
 
-  const navigate = (page) => {
+  const navigate = (page, payload = null) => {
     if (page === 'auth')  { setShowAuth(true); return; }
     // support deep navigation into admin sections using 'admin:<section>'
     if (page && page.startsWith('admin:')) {
@@ -47,6 +47,12 @@ function AppShell() {
     if (page === 'profile' && !user) { setShowAuth(true); return; }
     if (page === 'teams'   && !user) { setShowAuth(true); return; }
     setShowAuth(false);
+    // if navigating to builder with a payload, set editingTeam
+    if (page === 'builder' && payload) {
+      setEditingTeam(payload);
+      setCurrentPage('builder');
+      return;
+    }
     setCurrentPage(page);
     if (page !== 'builder') setEditingTeam(null);
   };

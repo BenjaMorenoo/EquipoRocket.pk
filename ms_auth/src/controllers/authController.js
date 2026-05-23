@@ -193,18 +193,55 @@ export const updateMe = async (req, res) => {
 
     const userId = payload.sub;
     if (!userId) return res.status(400).json({ success:false, error: 'NO_SUBJECT' });
-
-    const { username, email, region_id, country_id, fecha_nac } = req.body || {};
+    const { username, email, region_id, country_id, fecha_nac, current_password } = req.body || {};
     // basic validation
     if (!username || !email) return res.status(400).json({ success:false, error: 'INVALID_PAYLOAD' });
 
+    // require current password to authorize profile updates
+    if (!current_password) return res.status(400).json({ success:false, error: 'PASSWORD_REQUIRED' });
+
     const userModel = await import('../models/userModel.js');
+    const existing = await userModel.getUserById(userId);
+    if (!existing) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+    const match = await bcrypt.compare(current_password, existing.password_hash || '');
+    if (!match) return res.status(401).json({ success:false, error: 'INVALID_PASSWORD' });
+
     const updated = await userModel.updateUserProfile(userId, { username, email, region_id, country_id, fecha_nac });
     if (!updated) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
 
     return res.json({ success:true, data: { user: updated } });
   } catch (e) {
     console.error('[ms_auth] Error en updateMe:', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+export const verifyPassword = async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    if (!m) return res.status(401).json({ success:false, error: 'NO_TOKEN' });
+    const token = m[1];
+    let payload;
+    try { payload = jwt.verify(token, JWT_SECRET); } catch (e) { return res.status(401).json({ success:false, error: 'INVALID_TOKEN' }); }
+
+    const userId = payload.sub;
+    if (!userId) return res.status(400).json({ success:false, error: 'NO_SUBJECT' });
+
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ success:false, error: 'PASSWORD_REQUIRED' });
+
+    const userModel = await import('../models/userModel.js');
+    const existing = await userModel.getUserById(userId);
+    if (!existing) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+    const match = await bcrypt.compare(password, existing.password_hash || '');
+    if (!match) return res.status(401).json({ success:false, error: 'INVALID_PASSWORD' });
+
+    return res.json({ success:true, data: { valid: true } });
+  } catch (e) {
+    console.error('[ms_auth] Error en verifyPassword:', e.message);
     return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
   }
 };
