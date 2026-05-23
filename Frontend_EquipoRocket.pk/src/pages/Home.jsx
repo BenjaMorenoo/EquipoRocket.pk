@@ -227,14 +227,16 @@ export default function Home({ onNavigate }) {
           <div className="pk-card" style={{ padding: 'clamp(12px, 2vw, 16px)', marginBottom: '16px', overflowX: 'auto' }}>
             <div style={{ width: '100%', minHeight: '200px', height: 'clamp(160px, 40vw, 280px)' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topPokemons} layout="vertical" margin={{ top: 0, right: 40, left: 'auto', bottom: 0 }}>
+                <BarChart data={topPokemons} layout="vertical" margin={{ top: 0, right: 40, left: 80, bottom: 0 }}>
                   <XAxis type="number" domain={[0, 45]} tick={{ fill: 'var(--color-pk-muted)', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
                   <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-pk-subtle)', fontSize: 10, fontFamily: 'var(--font-body)' }} tickLine={false} axisLine={false} tickFormatter={n => n.replace(/-/g,' ').split(' ').map(w => w[0]?.toUpperCase()+w.slice(1)).join(' ')} width={60} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                   <Bar dataKey="usage" radius={[0, 4, 4, 0]} barSize={14}>
-                    {topPokemons.map((p) => (
-                      <Cell key={p.name} fill={getBarColor(p.types?.map(t => (typeof t==='string'?t:(t.type?.name||t.name))))} opacity={0.85} />
-                    ))}
+                    {topPokemons.map((p, idx) => {
+                      const key = p?.name || `pk-${idx}`;
+                      const types = p?.types?.map?.(t => (typeof t === 'string' ? t : (t.type?.name || t.name))) || [];
+                      return <Cell key={key} fill={getBarColor(types)} opacity={0.85} />;
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

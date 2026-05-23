@@ -216,6 +216,35 @@ export const getSimulationErrors = async (req, res) => {
   }
 };
 
+// GET /api/admin/users/registered-by-month
+export const getUsersRegisteredByMonth = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'NO_USER' });
+    const { rows: urows } = await query('SELECT is_admin FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (!urows.length || !urows[0].is_admin) return res.status(403).json({ success: false, error: 'FORBIDDEN' });
+
+    const sql = `SELECT month_start, users FROM admin_users_registered_by_month ORDER BY month_start DESC;`;
+      const { rows } = await query(sql);
+      // If materialized view is empty (not yet populated), fallback to a live aggregation
+      if (!rows.length) {
+        const liveSql = `
+  SELECT date_trunc('month', created_at) AS month_start, COUNT(*) AS users
+  FROM users
+  GROUP BY 1
+  ORDER BY 1 DESC
+  LIMIT 24;
+        `;
+        const { rows: liveRows } = await query(liveSql);
+        return res.json({ success: true, data: liveRows });
+      }
+      return res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('[ms_usuarios] getUsersRegisteredByMonth', e.message || e);
+    return res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
+  }
+};
+
 export default {
   getTeamPerformance,
   getTypesByCountry,
@@ -224,4 +253,5 @@ export default {
   getSimulationDurationStats,
   getSimulationThroughputHourly,
   getSimulationErrors,
+  getUsersRegisteredByMonth,
 };

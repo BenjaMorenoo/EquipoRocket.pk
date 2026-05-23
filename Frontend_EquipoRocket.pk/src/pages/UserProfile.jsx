@@ -9,9 +9,7 @@ import ConfirmModal from '../components/ConfirmModal';
 
 // Mock teams — fallback
 const MOCK_TEAMS = [
-  { id: 1, name: 'Dragon Storm',  format: 'OU',  pokemon: 6, updatedAt: '2026-05-10' },
-  { id: 2, name: 'Sun & Steel',   format: 'VGC', pokemon: 4, updatedAt: '2026-05-12' },
-  { id: 3, name: 'Rain Dance',    format: 'UU',  pokemon: 6, updatedAt: '2026-05-15' },
+  
 ];
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */

@@ -125,3 +125,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_types_by_country_unique ON admin_typ
 -- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_duration_stats;
 -- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_throughput_hourly;
 -- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_errors;
+
+-- =====================================================
+-- Users registered per month (global)
+-- =====================================================
+CREATE MATERIALIZED VIEW IF NOT EXISTS admin_users_registered_by_month AS
+SELECT
+  date_trunc('month', created_at)::date AS month_start,
+  COUNT(*) AS users
+FROM users
+GROUP BY month_start
+ORDER BY month_start;
+
+-- Unique index for concurrent refresh
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_registered_by_month_unique ON admin_users_registered_by_month(month_start);
+
+-- Example refresh:
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_users_registered_by_month;

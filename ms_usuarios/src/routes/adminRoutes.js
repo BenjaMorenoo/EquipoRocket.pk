@@ -12,5 +12,6 @@ router.get('/performance/errors', requireAuth, AdminCtrl.getSimulationErrors);
 router.get('/usage/types-by-country', requireAuth, AdminCtrl.getTypesByCountry);
 router.get('/users/by-age', requireAuth, AdminCtrl.getUsersByAge);
 router.get('/users/age-buckets', requireAuth, AdminCtrl.getUsersAgeBuckets);
+router.get('/users/registered-by-month', requireAuth, AdminCtrl.getUsersRegisteredByMonth);
 
 export default router;

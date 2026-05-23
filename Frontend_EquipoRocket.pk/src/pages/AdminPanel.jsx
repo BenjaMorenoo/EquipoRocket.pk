@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getUsers, setUserActive, registerUser, getTeams } from '../services/api';
 import AdminUsageByCountry from '../components/AdminUsageByCountry';
 import AdminSimulationsAnalytics from '../components/AdminSimulationsAnalytics';
+import AdminUsersByMonth from '../components/AdminUsersByMonth';
 
 /* ── Mock data (replace with API calls when backend is ready) ───────────── */
 const MOCK_USERS = [
@@ -329,8 +330,15 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
           {/* Performance section removed */}
           {section === 'users' && (
             <div className="pk-card fade-up fade-up-3" style={{ padding: '20px' }}>
-              {/* Reuse existing Users table below by moving its JSX here */}
-              <div style={{ marginBottom: 8 }}> (Users management)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '14px' }}>
+                <div>
+                  {/* Reuse existing Users table below by moving its JSX here */}
+                  <div style={{ marginBottom: 8 }}> (Users management)</div>
+                </div>
+                <div>
+                  <AdminUsersByMonth />
+                </div>
+              </div>
             </div>
           )}
           {section === 'teams' && (
