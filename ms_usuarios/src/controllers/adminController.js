@@ -173,4 +173,64 @@ ORDER BY bucket, r.name NULLS LAST, users DESC;
   }
 };
 
-export default { getTeamPerformance, getTypesByCountry, getUsersByAge, getUsersAgeBuckets };
+// GET /api/admin/performance/latency
+export const getSimulationDurationStats = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'NO_USER' });
+    const { rows: urows } = await query('SELECT is_admin FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (!urows.length || !urows[0].is_admin) return res.status(403).json({ success: false, error: 'FORBIDDEN' });
+
+    const sql = `SELECT * FROM admin_simulation_duration_stats LIMIT 1;`;
+    const { rows } = await query(sql);
+    return res.json({ success: true, data: rows[0] || {} });
+  } catch (e) {
+    console.error('[ms_usuarios] getSimulationDurationStats', e.message || e);
+    return res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+// GET /api/admin/performance/throughput
+export const getSimulationThroughputHourly = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'NO_USER' });
+    const { rows: urows } = await query('SELECT is_admin FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (!urows.length || !urows[0].is_admin) return res.status(403).json({ success: false, error: 'FORBIDDEN' });
+
+    const sql = `SELECT hour, simulations_count FROM admin_simulation_throughput_hourly ORDER BY hour DESC LIMIT 168;`;
+    const { rows } = await query(sql);
+    return res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('[ms_usuarios] getSimulationThroughputHourly', e.message || e);
+    return res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+// GET /api/admin/performance/errors
+export const getSimulationErrors = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'NO_USER' });
+    const { rows: urows } = await query('SELECT is_admin FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (!urows.length || !urows[0].is_admin) return res.status(403).json({ success: false, error: 'FORBIDDEN' });
+
+    // admin_simulation_errors currently exposes `status` and `occurrences` (no error_type)
+    const sql = `SELECT status, occurrences FROM admin_simulation_errors ORDER BY occurrences DESC LIMIT 100;`;
+    const { rows } = await query(sql);
+    return res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('[ms_usuarios] getSimulationErrors', e.message || e);
+    return res.status(500).json({ success: false, error: 'INTERNAL_ERROR' });
+  }
+};
+
+export default {
+  getTeamPerformance,
+  getTypesByCountry,
+  getUsersByAge,
+  getUsersAgeBuckets,
+  getSimulationDurationStats,
+  getSimulationThroughputHourly,
+  getSimulationErrors,
+};

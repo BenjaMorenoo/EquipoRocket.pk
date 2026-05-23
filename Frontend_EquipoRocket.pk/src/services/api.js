@@ -124,8 +124,10 @@ export const getUsers = async () => {
   return data;
 };
 
-export const setUserActive = async (id, active) => {
-  const { data } = await backendAPI.patch(`/auth/users/${id}/active`, { active });
+export const setUserActive = async (id, active, password = undefined) => {
+  const body = { active };
+  if (typeof password === 'string' && password.length) body.password = password;
+  const { data } = await backendAPI.patch(`/auth/users/${id}/active`, body);
   return data;
 };
 
@@ -296,5 +298,29 @@ export const getUsersAgeBuckets = async () => {
   const token = localStorage.getItem('pk_token');
   const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   const { data } = await axios.get(`${msUsersBase}/admin/users/age-buckets`, { headers });
+  return data;
+};
+
+export const getPerformanceLatency = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/performance/latency`, { headers });
+  return data;
+};
+
+export const getPerformanceThroughput = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/performance/throughput`, { headers });
+  return data;
+};
+
+export const getPerformanceErrors = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/admin/performance/errors`, { headers });
   return data;
 };

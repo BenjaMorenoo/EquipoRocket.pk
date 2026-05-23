@@ -1,13 +1,13 @@
 // src/pages/AdminPanel.jsx
 import { useState, useMemo, useEffect } from 'react';
-import { FaCrown, FaExclamationTriangle, FaTimes, FaEye, FaUsers, FaCheckCircle, FaTrophy, FaSearch, FaTrash, FaUser } from 'react-icons/fa';
+import { FaCrown, FaExclamationTriangle, FaTimes, FaEye, FaEyeSlash, FaUsers, FaCheckCircle, FaTrophy, FaSearch, FaTrash, FaUser } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { REGIONS, COUNTRIES_BY_REGION } from '../utils/regions';
 import { validators } from '../utils/validators';
 import ConfirmModal from '../components/ConfirmModal';
-import { getUsers, setUserActive, registerUser } from '../services/api';
-import AdminPerformance from '../components/AdminPerformance';
+import { getUsers, setUserActive, registerUser, getTeams } from '../services/api';
 import AdminUsageByCountry from '../components/AdminUsageByCountry';
+import AdminSimulationsAnalytics from '../components/AdminSimulationsAnalytics';
 
 /* ── Mock data (replace with API calls when backend is ready) ───────────── */
 const MOCK_USERS = [
@@ -154,8 +154,9 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
   const [filterAct,  setFilterAct]  = useState(''); // '' | 'active' | 'inactive'
   const [sortBy,     setSortBy]     = useState('created_at');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toggleAction, setToggleAction] = useState('deactivate');
   const [createAdminOpen, setCreateAdminOpen] = useState(false);
-  const [section, setSection] = useState(initialSection || 'performance');
+  const [section, setSection] = useState(initialSection || 'users');
 
   /* ── Derived stats ── */
   const totalUsers   = users.length;
@@ -186,16 +187,21 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
   /* ── Delete user ── */
   const handleDelete = async (password) => {
     try {
-      // instead of deleting, mark as inactive
-      const res = await setUserActive(deleteTarget.id, false);
+      const desiredActive = toggleAction === 'activate';
+      const res = await setUserActive(deleteTarget.id, desiredActive, password);
       const updated = res?.data?.user;
       if (updated) {
         setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, is_active: updated.is_active } : u));
+        // close modal only on success
+        setDeleteTarget(null);
+      } else {
+        // unexpected: keep modal open and surface error
+        throw new Error('USER_UPDATE_FAILED');
       }
     } catch (e) {
-      console.error('Failed to deactivate user', e.message);
-    } finally {
-      setDeleteTarget(null);
+      console.error('Failed to toggle user active state', e.message);
+      // rethrow so ConfirmModal receives the error and displays message to user
+      throw e;
     }
   };
 
@@ -220,12 +226,28 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
     let mounted = true;
     (async () => {
       try {
-        const res = await getUsers();
-        const list = res?.data?.users || [];
-        if (mounted) setUsers(list.map(u => ({ ...u, teams: u.teams ?? 0 })));
+        const [usersRes, teamsRes] = await Promise.all([getUsers(), getTeams()]);
+        const list = usersRes?.data?.users || [];
+        const teamsList = teamsRes?.data?.teams || [];
+        // build a map userId -> teamsCount
+        const counts = teamsList.reduce((acc, t) => {
+          const uid = t.user_id || t.owner_id || t.created_by_user_id || t.userId || null;
+          // prefer explicit user_id field; fallback to owner or created_by variants
+          if (!uid) return acc;
+          acc[uid] = (acc[uid] || 0) + 1;
+          return acc;
+        }, {});
+        if (mounted) setUsers(list.map(u => ({ ...u, teams: Number(u.teams ?? counts[u.id] ?? 0) })));
       } catch (e) {
-        console.error('Failed to load users', e.message);
-        setUsers(MOCK_USERS);
+        console.error('Failed to load users or teams', e.message);
+        // fallback to whatever users endpoint returned or mock
+        try {
+          const res = await getUsers();
+          const list = res?.data?.users || [];
+          if (mounted) setUsers(list.map(u => ({ ...u, teams: u.teams ?? 0 })));
+        } catch (err) {
+          setUsers(MOCK_USERS);
+        }
       }
     })();
     return () => { mounted = false; };
@@ -297,14 +319,14 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
       {/* Admin performance metrics */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-          <button onClick={() => setSection('performance')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'performance' ? 'rgba(37,99,235,0.08)' : 'var(--color-pk-card)', border: section === 'performance' ? '1px solid rgba(37,99,235,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Performance</button>
-          <button onClick={() => setSection('users')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'users' ? 'rgba(16,185,129,0.08)' : 'var(--color-pk-card)', border: section === 'users' ? '1px solid rgba(16,185,129,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Users</button>
-          <button onClick={() => setSection('teams')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'teams' ? 'rgba(245,158,11,0.08)' : 'var(--color-pk-card)', border: section === 'teams' ? '1px solid rgba(245,158,11,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Teams</button>
-          <button onClick={() => setSection('simulations')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'simulations' ? 'rgba(220,38,38,0.06)' : 'var(--color-pk-card)', border: section === 'simulations' ? '1px solid rgba(220,38,38,0.14)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Simulations</button>
+          {/* Performance tab removed */}
+          <button onClick={() => setSection('users')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'users' ? 'rgba(16,185,129,0.08)' : 'var(--color-pk-card)', border: section === 'users' ? '1px solid rgba(16,185,129,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Usuarios</button>
+          <button onClick={() => setSection('teams')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'teams' ? 'rgba(245,158,11,0.08)' : 'var(--color-pk-card)', border: section === 'teams' ? '1px solid rgba(245,158,11,0.18)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Equipos</button>
+          <button onClick={() => setSection('simulations')} style={{ padding: '8px 12px', borderRadius: 8, background: section === 'simulations' ? 'rgba(220,38,38,0.06)' : 'var(--color-pk-card)', border: section === 'simulations' ? '1px solid rgba(220,38,38,0.14)' : '1px solid var(--color-pk-border)', cursor: 'pointer' }}>Simulaciones</button>
         </div>
 
         <div className="fade-up fade-up-2">
-          {section === 'performance' && <AdminPerformance />}
+          {/* Performance section removed */}
           {section === 'users' && (
             <div className="pk-card fade-up fade-up-3" style={{ padding: '20px' }}>
               {/* Reuse existing Users table below by moving its JSX here */}
@@ -317,7 +339,9 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
             </div>
           )}
           {section === 'simulations' && (
-            <div className="pk-card" style={{ padding: 20 }}>Simulations analytics (en desarrollo)</div>
+            <div className="fade-up fade-up-3">
+              <AdminSimulationsAnalytics />
+            </div>
           )}
         </div>
       </div>
@@ -462,7 +486,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
                   <td style={{ padding: '12px 12px' }}>
                     {u.id !== adminUser?.id ? (
                       <button
-                        onClick={() => setDeleteTarget(u)}
+                        onClick={() => { setDeleteTarget(u); setToggleAction(u.is_active ? 'deactivate' : 'activate'); }}
                         style={{
                           background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
                           borderRadius: '7px', color: '#fca5a5', cursor: 'pointer',
@@ -473,7 +497,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#fca5a5'; }}
                       >
-                        <FaTrash style={{ marginRight: 8 }} /> Eliminar
+                        {u.is_active ? (<><FaTimes style={{ marginRight: 8 }} /> Desactivar</>) : (<><FaCheckCircle style={{ marginRight: 8 }} /> Activar</>)}
                       </button>
                     ) : (
                       <span style={{ fontSize: '11px', color: 'var(--color-pk-muted)' }}>—</span>
@@ -490,17 +514,25 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
       {/* ── Delete confirm modal ── */}
       {deleteTarget && (
         <ConfirmModal
-          title="Eliminar usuario"
+          title={toggleAction === 'activate' ? 'Activar usuario' : 'Desactivar usuario'}
           description={
-            <>
-              Estás a punto de eliminar permanentemente la cuenta de{' '}
-              <strong style={{ color: '#fca5a5' }}>{deleteTarget.username}</strong>.
-              Esta acción <strong>no se puede deshacer</strong> y eliminará también todos sus equipos ({deleteTarget.teams}).
-            </>
+            toggleAction === 'activate' ? (
+              <>
+                Estás a punto de <strong>activar</strong> la cuenta de{' '}
+                <strong style={{ color: '#4ade80' }}>{deleteTarget.username}</strong>. Esto permitirá que el usuario acceda nuevamente a la plataforma.
+              </>
+            ) : (
+              <>
+                Estás a punto de <strong>desactivar</strong> la cuenta de{' '}
+                <strong style={{ color: '#fca5a5' }}>{deleteTarget.username}</strong>.
+                Esta acción deshabilita el acceso del usuario, pero conserva sus datos y equipos.
+                Puedes reactivar la cuenta más tarde desde este panel.
+              </>
+            )
           }
-          confirmLabel={<><FaTrash style={{ marginRight: 8 }} />Eliminar a {deleteTarget.username}</>}
+          confirmLabel={toggleAction === 'activate' ? (<><FaCheckCircle style={{ marginRight: 8 }} />Activar a {deleteTarget.username}</>) : (<><FaTimes style={{ marginRight: 8 }} />Desactivar a {deleteTarget.username}</>)}
           requireTyping={deleteTarget.username}
-          requirePassword={true}
+          requirePassword={toggleAction === 'deactivate'}
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
         />

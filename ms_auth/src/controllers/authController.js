@@ -104,9 +104,33 @@ export const setUserActive = async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ success:false, error: 'INVALID_ID' });
-    const { active } = req.body;
+    const { active, password } = req.body || {};
     if (typeof active !== 'boolean') return res.status(400).json({ success:false, error: 'INVALID_PAYLOAD' });
     const userModel = await import('../models/userModel.js');
+
+    // If deactivating, require a password to be provided and valid.
+    // Accept either the target user's password OR the admin's password (caller), to reduce UX friction.
+    if (active === false) {
+      if (!password) return res.status(400).json({ success:false, error: 'PASSWORD_REQUIRED' });
+      const target = await userModel.getUserById(id);
+      if (!target) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+      // req.authUser is populated by requireAdmin middleware (the caller admin)
+      const adminCaller = req.authUser || null;
+
+      // First try target user's password
+      const matchTarget = await bcrypt.compare(password, target.password_hash || '');
+      if (!matchTarget) {
+        // fallback: accept admin caller's password
+        if (adminCaller && adminCaller.password_hash) {
+          const matchAdmin = await bcrypt.compare(password, adminCaller.password_hash || '');
+          if (!matchAdmin) return res.status(401).json({ success:false, error: 'INVALID_PASSWORD' });
+        } else {
+          return res.status(401).json({ success:false, error: 'INVALID_PASSWORD' });
+        }
+      }
+    }
+
     const u = await userModel.setUserActive(id, active);
     if (!u) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
     return res.json({ success:true, data: { user: u } });

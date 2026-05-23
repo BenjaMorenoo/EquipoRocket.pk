@@ -56,3 +56,46 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_team_performance_created_by_unique O
 
 -- To refresh periodically:
 -- REFRESH MATERIALIZED VIEW admin_team_performance;
+
+-- =====================================================
+-- Simulation performance aggregates (durations, throughput, errors)
+-- =====================================================
+
+-- Duration percentiles and averages for simulations
+CREATE MATERIALIZED VIEW IF NOT EXISTS admin_simulation_duration_stats AS
+SELECT
+  COUNT(*) AS total_simulations,
+  AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000) AS avg_duration_ms,
+  percentile_cont(0.50) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000) AS p50_duration_ms,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000) AS p95_duration_ms,
+  percentile_cont(0.99) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - created_at)) * 1000) AS p99_duration_ms
+FROM battle_simulations
+WHERE created_at IS NOT NULL AND completed_at IS NOT NULL;
+
+-- Hourly throughput (simulations per hour)
+CREATE MATERIALIZED VIEW IF NOT EXISTS admin_simulation_throughput_hourly AS
+SELECT
+  date_trunc('hour', created_at) AS hour,
+  COUNT(*) AS simulations_count
+FROM battle_simulations
+GROUP BY hour
+ORDER BY hour;
+
+-- Errors / failures breakdown
+CREATE MATERIALIZED VIEW IF NOT EXISTS admin_simulation_errors AS
+SELECT
+  CASE WHEN completed_at IS NULL THEN 'incomplete' ELSE 'completed' END AS status,
+  COUNT(*) AS occurrences
+FROM battle_simulations
+GROUP BY CASE WHEN completed_at IS NULL THEN 'incomplete' ELSE 'completed' END
+ORDER BY occurrences DESC;
+
+-- Indexes to allow CONCURRENTLY refreshes where applicable
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_duration_stats_single ON admin_simulation_duration_stats((true));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_throughput_hourly_hour ON admin_simulation_throughput_hourly(hour);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_errors_status ON admin_simulation_errors(status);
+
+-- Refresh examples:
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_duration_stats;
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_throughput_hourly;
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_errors;
