@@ -9,6 +9,7 @@ import psycopg2
 
 from api_client import fetch_api, list_pokemon_entries
 from montecarlo import search_best_team
+import math
 
 app = FastAPI(title="ms_montecarlo")
 
@@ -30,8 +31,8 @@ class SimulateRequest(BaseModel):
     team_b_id: Optional[int] = None
     api_url: Optional[str] = None
     persist_moves: bool = False
-    iterations: int = 1000
-    sims: int = 500
+    iterations: int = 5000
+    sims: int = 50000
 
 
 def get_db_conn():
@@ -460,10 +461,47 @@ def persist_best(payload: Any = Body(...)):
     Expects JSON: { team_id: int, best_team: [ { name, item, ability, moves } ], user_id?: int }
     """
     try:
+        # Debug: print summary of incoming payload to help trace gateway forwarding
+        try:
+            print(f"ms_montecarlo.persist_best received payload keys={list(payload.keys())} team_id={payload.get('team_id')} best_team_len={len(payload.get('best_team') or [])}")
+        except Exception:
+            print('ms_montecarlo.persist_best received non-dict payload or failed to summarize')
         team_id = payload.get('team_id')
         best_team = payload.get('best_team') or []
+        # Expect win_rate (percentage 0-100) and simulation_count (n) to be provided so we can
+        # validate statistical significance. Optional: force=True to bypass the check.
+        win_rate_pct = payload.get('win_rate')
+        sim_count = payload.get('simulation_count') or payload.get('sims') or payload.get('n')
+        force = bool(payload.get('force'))
+
         if not team_id or not isinstance(best_team, list):
             raise HTTPException(status_code=400, detail='team_id and best_team required')
+
+        if win_rate_pct is None or sim_count is None:
+            if not force:
+                raise HTTPException(status_code=400, detail='persist_best requires win_rate (0-100) and simulation_count (n) unless force=true')
+        else:
+            try:
+                p_hat = float(win_rate_pct) / 100.0
+                n = int(sim_count)
+                if n <= 0:
+                    raise ValueError('n must be > 0')
+                se = math.sqrt(p_hat * (1.0 - p_hat) / n)
+                lower = p_hat - 1.96 * se
+                print(f"ms_montecarlo.persist_best: win_rate={p_hat:.4f} n={n} lower95={lower:.4f} force={force}")
+                if lower <= 0.5 and not force:
+                    # Not significant enough to claim >50% win probability
+                    raise HTTPException(status_code=400, detail={
+                        'error': 'win_rate not significant',
+                        'win_rate': win_rate_pct,
+                        'simulation_count': n,
+                        'lower95': round(lower * 100, 3),
+                        'message': 'Increase simulation_count or set force=true to persist anyway'
+                    })
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f'invalid win_rate/simulation_count: {e}')
         conn = get_db_conn()
         cur = conn.cursor()
 

@@ -9,6 +9,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// ── Debugging: lightweight request logging to verify Authorization header forwarding
+app.use((req, res, next) => {
+  try {
+    const hasAuth = !!req.headers.authorization;
+    console.log(`[GW DEBUG] ${req.method} ${req.path} auth=${hasAuth}`);
+  } catch (e) {
+    // don't fail requests due to debugging
+  }
+  next();
+});
+
 // ── Environment configuration ─────────────────────────────────────────────
 const MS_AUTH_URL = process.env.MS_AUTH_URL || 'http://ms_auth:3001';
 const MS_USUARIOS_URL = process.env.MS_USUARIOS_URL || 'http://ms_usuarios:3003';
@@ -67,8 +78,29 @@ app.use(
   createProxyMiddleware({
     target: MS_AUTH_URL,
     changeOrigin: true,
+    // Allow longer waits for auth service responses (ms)
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/auth': '/api/auth',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/auth -> ${MS_AUTH_URL} method=${req.method} auth=${hasAuth}`);
+
+        // If the body was already parsed by express.json(), we need to
+        // re-serialize and write it to the proxied request so the target
+        // service receives the JSON body (otherwise the stream was consumed).
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {
+        // never break the proxy because of logging/debugging
+      }
     },
     onError: (err, req, res) => {
       console.error('Auth service error:', err);
@@ -77,14 +109,58 @@ app.use(
   })
 );
 
+// Admin user management (some user management endpoints live in ms_auth)
+app.use(
+  '/api/usuarios/users',
+  createProxyMiddleware({
+    target: MS_AUTH_URL,
+    changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
+    pathRewrite: {
+      '^/api/usuarios/users': '/api/auth/users',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/usuarios/users -> ${MS_AUTH_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
+    },
+    onError: (err, req, res) => {
+      console.error('Auth-users proxy error:', err);
+      res.status(503).json({ error: 'Auth users proxy unavailable' });
+    },
+  })
+);
+ 
 // Users/Teams routes → ms_usuarios
 app.use(
   '/api/usuarios',
   createProxyMiddleware({
     target: MS_USUARIOS_URL,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/usuarios': '/api',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/usuarios -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Users service error:', err);
@@ -99,8 +175,22 @@ app.use(
   createProxyMiddleware({
     target: MS_USUARIOS_URL,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/teams': '/api/teams',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/teams -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Teams service error:', err);
@@ -115,8 +205,22 @@ app.use(
   createProxyMiddleware({
     target: MS_USUARIOS_URL,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/users': '/api/users',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/users -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Users service error:', err);
@@ -124,6 +228,7 @@ app.use(
     },
   })
 );
+ 
 
 // Pokemon routes → ms_pokemon
 app.use(
@@ -147,8 +252,23 @@ app.use(
   createProxyMiddleware({
     target: MS_CARGA_API_URL,
     changeOrigin: true,
+    // longer timeout and forward parsed body
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/carga': '',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/carga -> ${MS_CARGA_API_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Data loading service error:', err);
@@ -163,8 +283,22 @@ app.use(
   createProxyMiddleware({
     target: MS_MONTECARLO_URL,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/montecarlo': '',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/montecarlo -> ${MS_MONTECARLO_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Monte Carlo service error:', err);
@@ -179,8 +313,22 @@ app.use(
   createProxyMiddleware({
     target: MS_ASISTENCIA_URL,
     changeOrigin: true,
+    proxyTimeout: 60000,
+    timeout: 60000,
     pathRewrite: {
       '^/api/asistencia': '',
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      try {
+        const hasAuth = !!req.headers.authorization;
+        console.log(`[GW PROXY] /api/asistencia -> ${MS_ASISTENCIA_URL} method=${req.method} auth=${hasAuth}`);
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader('Content-Type', 'application/json');
+          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
+      } catch (e) {}
     },
     onError: (err, req, res) => {
       console.error('Attendance service error:', err);

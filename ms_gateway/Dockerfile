@@ -4,15 +4,20 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (both package.json and optional package-lock.json)
+COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install dependencies: use npm ci if lockfile exists, otherwise fall back to npm install
+RUN if [ -f package-lock.json ]; then \
+      npm ci --omit=dev; \
+    else \
+      npm install --omit=dev; \
+    fi
 
 # Copy application
 COPY app.js .
-COPY .env .env.example ./ 2>/dev/null || true
+# Copy example env only; do not require a local .env during build
+COPY .env.example .env.example
 
 # Expose port
 EXPOSE 8000

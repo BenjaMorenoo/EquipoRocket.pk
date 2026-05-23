@@ -61,3 +61,14 @@ export const removeCollection = async (req, res) => {
     return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
   }
 };
+
+export const listUsers = async (req, res) => {
+  try {
+    // Return basic user fields for admin UI
+    const { rows } = await query(`SELECT id, username, email, region_id, country_id, is_admin, is_active, created_at FROM users ORDER BY created_at DESC LIMIT 1000`);
+    return res.json({ success: true, data: { users: rows } });
+  } catch (e) {
+    console.error('[ms_usuarios] listUsers', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
