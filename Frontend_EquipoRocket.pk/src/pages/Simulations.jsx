@@ -1,7 +1,7 @@
 // src/pages/Simulations.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
+import { getTeams, getPublicTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
 import { persistBestConfiguration, postTeamFeedback } from '../services/api';
 import { FaPlay, FaVial, FaChartLine } from 'react-icons/fa';
 
@@ -9,6 +9,7 @@ export default function Simulations({ onNavigate }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState([]);
+  const [rivalTeams, setRivalTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [opponentTeam, setOpponentTeam] = useState(null);
   const [simulationResult, setSimulationResult] = useState(null);
@@ -20,7 +21,7 @@ export default function Simulations({ onNavigate }) {
       setLoading(true);
       try {
         if (user) {
-          const teamsData = await getTeams();
+          const [teamsData, publicData] = await Promise.all([getTeams(), getPublicTeams()]);
           // normalize response: accept several backend shapes:
           // - Array of teams
           // - { teams: [...] }
@@ -33,6 +34,13 @@ export default function Simulations({ onNavigate }) {
           else if (teamsData?.data && Array.isArray(teamsData.data)) normalized = teamsData.data;
           else normalized = [];
           if (mounted) setTeams(normalized);
+          // normalize public teams
+          let pnorm = [];
+          if (Array.isArray(publicData)) pnorm = publicData;
+          else if (publicData?.data && Array.isArray(publicData.data)) pnorm = publicData.data;
+          else if (publicData?.data?.teams && Array.isArray(publicData.data.teams)) pnorm = publicData.data.teams;
+          else if (publicData?.teams && Array.isArray(publicData.teams)) pnorm = publicData.teams;
+          if (mounted) setRivalTeams(pnorm);
         }
       } catch (e) {
         console.error('Error cargando equipos', e.message);
@@ -230,10 +238,14 @@ export default function Simulations({ onNavigate }) {
                   const teamId = e.target.value;
                   if (teamId) {
                     if (teamId === 'random') { setOpponentTeam({ id: 'random', name: 'Equipo Aleatorio' }); return; }
-                    const found = teams.find(t => String(t.id) === String(teamId));
+                    // search among own teams and rival teams
+                    let found = teams.find(t => String(t.id) === String(teamId));
+                    if (!found) found = rivalTeams.find(t => String(t.id) === String(teamId));
                     if (found) {
                       const enriched = await enrichTeam(found);
-                      setOpponentTeam(enriched || found);
+                      // preserve owner info if present on the original
+                      const final = { ...(found.owner_username ? { owner_username: found.owner_username, owner_id: found.owner_id } : {}), ...(enriched || found) };
+                      setOpponentTeam(final);
                     } else {
                       setOpponentTeam({ id: Number(teamId), name: `Equipo ${teamId}` });
                     }
@@ -254,11 +266,20 @@ export default function Simulations({ onNavigate }) {
                 }}
               >
                 <option value="">-- Selecciona un equipo --</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name} ({team.pokemon?.length || 0} Pokémon)
-                  </option>
-                ))}
+                <optgroup label="Mis equipos">
+                  {teams.map((team) => (
+                    <option key={`mine-${team.id}`} value={team.id}>
+                      {team.name} ({team.pokemon?.length || 0} Pokémon)
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Equipos rivales">
+                  {rivalTeams.map((team) => (
+                    <option key={`r-${team.id}`} value={team.id}>
+                      {team.name} — {team.owner_username || team.owner_id || 'Usuario'} ({team.pokemon?.length || 0} Pokémon)
+                    </option>
+                  ))}
+                </optgroup>
                 <option value="random">-- Equipo Aleatorio (próximamente) --</option>
               </select>
             </div>

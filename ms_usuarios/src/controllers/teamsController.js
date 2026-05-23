@@ -38,6 +38,27 @@ export const listTeams = async (req, res) => {
   }
 };
 
+export const listPublicTeams = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const baseTeams = await TeamRepo.findPublic(userId);
+    const teams = [];
+    for (const t of baseTeams) {
+      const full = await TeamRepo.findById(t.id);
+      if (full) {
+        // expose owner username for UI
+        full.owner_username = t.username || null;
+        full.owner_id = t.user_id || null;
+        teams.push(full);
+      }
+    }
+    return res.json({ success:true, data: { teams } });
+  } catch (e) {
+    console.error('[ms_usuarios] listPublicTeams', e.message || e);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
 export const createTeam = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -103,6 +124,8 @@ export const getTeam = async (req, res) => {
     const id = Number(req.params.id);
     const team = await TeamRepo.findById(id);
     if (!team) return res.status(404).json({ success:false, error: 'NOT_FOUND' });
+    // If the team is inactive, treat as not found for regular users
+    if (team.active === false) return res.status(404).json({ success:false, error: 'NOT_FOUND' });
     if (team.user_id !== req.user.id) return res.status(403).json({ success:false, error: 'FORBIDDEN' });
     return res.json({ success:true, data: { team } });
   } catch (e) {

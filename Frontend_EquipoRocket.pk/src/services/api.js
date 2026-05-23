@@ -329,3 +329,11 @@ export const getPerformanceErrors = async () => {
   const { data } = await axios.get(`${msUsersBase}/admin/performance/errors`, { headers });
   return data;
 };
+
+export const getPublicTeams = async () => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.get(`${msUsersBase}/teams/public`, { headers });
+  return data;
+};

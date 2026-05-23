@@ -200,7 +200,25 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
   const handleExport = () => {
     if (!user) { setAuthPrompt('exportar'); return; }
     if (filledCount === 0) { alert('Tu equipo está vacío.'); return; }
-    const content  = exportTeamToShowdown(team, { name: teamName || 'Mi Equipo' });
+    // build enriched team: resolve spread_id -> spread object and normalize moves/ability/item
+    const enrichedTeam = team.filter(Boolean).map((pk) => {
+      const spread = pk.spread || (pk.spread_id ? spreadsOptions.find(s => s.id === pk.spread_id) : null);
+      return {
+        name: pk.name,
+        item: (pk.item && typeof pk.item === 'object' ? (pk.item.name || '') : (pk.item || '')),
+        ability: (pk.ability && typeof pk.ability === 'object' ? (pk.ability.name || '') : (pk.ability || '')),
+        level: pk.level || 100,
+        nature: pk.nature || (spread ? spread.nature : undefined),
+        evs: pk.evs || undefined,
+        spread: spread ? { ...spread } : undefined,
+        ivs: pk.ivs || undefined,
+        moves: Array.isArray(pk.moves) ? pk.moves.map(m => (typeof m === 'string' ? m : (m?.name || m?.move || ''))).filter(Boolean) : [],
+        shiny: !!pk.shiny,
+        gender: pk.gender || '',
+        nickname: pk.nickname || pk.nick || '',
+      };
+    });
+    const content  = exportTeamToShowdown(enrichedTeam, { name: teamName || 'Mi Equipo' });
     const filename = `${(teamName || 'equipo').replace(/\s+/g, '_').toLowerCase()}_showdown.txt`;
     downloadTxt(content, filename);
   };

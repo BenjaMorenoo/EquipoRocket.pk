@@ -10,7 +10,21 @@ export const createTeam = async ({ user_id, name, format_id, created_by = 'manua
 };
 
 export const getTeamsByUser = async (user_id) => {
-  const { rows } = await query(`SELECT * FROM teams WHERE user_id = $1 ORDER BY created_at DESC`, [user_id]);
+  // Return only active teams for the user's view. Keep NULL (legacy) as active.
+  const { rows } = await query(`SELECT * FROM teams WHERE user_id = $1 AND (active IS NULL OR active = TRUE) ORDER BY created_at DESC`, [user_id]);
+  return rows;
+};
+
+export const getPublicTeams = async (exclude_user_id) => {
+  // Return active teams owned by other users, include owner's username
+  const { rows } = await query(`
+    SELECT t.*, u.username
+    FROM teams t
+    JOIN users u ON t.user_id = u.id
+    WHERE (t.active IS NULL OR t.active = TRUE) AND t.user_id != $1
+    ORDER BY t.created_at DESC
+    LIMIT 200
+  `, [exclude_user_id]);
   return rows;
 };
 
@@ -52,8 +66,10 @@ export const updateTeam = async (id, payload) => {
 };
 
 export const deleteTeam = async (id) => {
-  await query(`DELETE FROM teams WHERE id = $1`, [id]);
-  return true;
+  // Soft-delete: mark team as inactive so it disappears from user views
+  // but remains in DB for analytics and auditing.
+  const { rows } = await query(`UPDATE teams SET active = FALSE, updated_at = NOW() WHERE id = $1 RETURNING *`, [id]);
+  return rows[0] || null;
 };
 
 export const replaceTeamPokemons = async (team_id, pokemons) => {

@@ -84,17 +84,8 @@ export const getTypesByCountry = async (req, res) => {
     const { rows: urows } = await query('SELECT is_admin FROM users WHERE id = $1 LIMIT 1', [userId]);
     if (!urows.length || !urows[0].is_admin) return res.status(403).json({ success: false, error: 'FORBIDDEN' });
 
-    const sql = `
-SELECT c.id AS country_id, c.name AS country, t.id AS type_id, t.name AS type, COUNT(*) AS uses
-FROM team_pokemon tp
-JOIN teams te ON tp.team_id = te.id
-JOIN users u ON te.user_id = u.id
-LEFT JOIN countries c ON u.country_id = c.id
-JOIN pokemon_types pt ON tp.pokemon_id = pt.pokemon_id AND COALESCE(pt.slot,1) = 1
-JOIN types t ON pt.type_id = t.id
-GROUP BY c.id, c.name, t.id, t.name
-ORDER BY c.name NULLS LAST, uses DESC;
-`;
+    // Use materialized view for performance and stability (includes inactive teams)
+    const sql = `SELECT country_id, country, type_id, type, uses FROM admin_types_by_country ORDER BY country NULLS LAST, uses DESC;`;
     const { rows } = await query(sql);
     return res.json({ success: true, data: rows });
   } catch (e) {

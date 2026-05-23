@@ -102,16 +102,19 @@ export default function AdminUsageByCountry() {
                   <div style={{ minWidth: 260 }}>
                     <div style={{ fontWeight: 700, marginBottom: 6 }}>{selectedCountry}</div>
                     <div style={{ width: 220, height: 160 }}>
-                      <ResponsiveContainer>
-                        <PieChart>
+                      {pieData.length === 0 ? (
+                        <div style={{ color: 'var(--color-pk-muted)', fontSize: 13 }}>No hay datos de tipos para este país.</div>
+                      ) : (
+                        <PieChart width={220} height={160}>
                           <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={64} label>
                             {pieData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip />
+                          <Legend verticalAlign="bottom" height={24} />
                         </PieChart>
-                      </ResponsiveContainer>
+                      )}
                     </div>
                     <div style={{ marginTop: 8 }}>
                       {selectedTypes.slice(0,6).map((t,i) => (
@@ -126,15 +129,17 @@ export default function AdminUsageByCountry() {
                   <div style={{ flex: 1, minWidth: 320 }}>
                     <div style={{ fontWeight: 700, marginBottom: 6 }}>Comparación por países — tipo: {topType || '—'}</div>
                     <div style={{ width: '100%', height: 220 }}>
-                      <ResponsiveContainer>
-                        <BarChart data={countryComparisonData} layout="vertical">
+                      {topType ? (
+                        <BarChart width={600} height={220} data={countryComparisonData} layout="vertical">
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis type="number" />
                           <YAxis dataKey="country" type="category" width={140} />
                           <Tooltip />
                           <Bar dataKey="uses" fill="#2563eb" />
                         </BarChart>
-                      </ResponsiveContainer>
+                      ) : (
+                        <div style={{ color: 'var(--color-pk-muted)' }}>Selecciona un país para ver la comparación por tipo principal.</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -150,15 +155,13 @@ export default function AdminUsageByCountry() {
           <div style={{ color: 'var(--color-pk-muted)' }}>No hay datos de edad.</div>
         ) : (
           <div style={{ width: '100%', height: 220 }}>
-            <ResponsiveContainer>
-              <BarChart data={bucketsChartData} onClick={(e)=>{ if (e && e.activeLabel) setSelectedBucket(e.activeLabel); }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="bucket" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="users" fill="#2563eb" name="Usuarios" />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart width={600} height={220} data={bucketsChartData} onClick={(e)=>{ if (e && e.activeLabel) setSelectedBucket(e.activeLabel); }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="bucket" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="users" fill="#2563eb" name="Usuarios" />
+            </BarChart>
             <div style={{ fontSize: 12, color: 'var(--color-pk-muted)', marginTop: 8 }}>Haga clic en una barra para ver distribución por país.</div>
           </div>
         )}

@@ -95,6 +95,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_duration_stats_single ON 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_throughput_hourly_hour ON admin_simulation_throughput_hourly(hour);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_simulation_errors_status ON admin_simulation_errors(status);
 
+-- =====================================================
+-- Types usage by country (based on team_pokemon + teams + users)
+-- Includes all teams (active or inactive) so analytics are stable after soft-deletes
+-- =====================================================
+CREATE MATERIALIZED VIEW IF NOT EXISTS admin_types_by_country AS
+SELECT
+  c.id AS country_id,
+  c.name AS country,
+  ty.id AS type_id,
+  ty.name AS type,
+  COUNT(*) AS uses
+FROM team_pokemon tp
+JOIN teams te ON tp.team_id = te.id
+JOIN users u ON te.user_id = u.id
+LEFT JOIN countries c ON u.country_id = c.id
+JOIN pokemon_types pt ON tp.pokemon_id = pt.pokemon_id AND COALESCE(pt.slot,1) = 1
+JOIN types ty ON pt.type_id = ty.id
+GROUP BY c.id, c.name, ty.id, ty.name
+ORDER BY c.name NULLS LAST, uses DESC;
+
+-- Unique index to allow CONCURRENTLY refresh
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_types_by_country_unique ON admin_types_by_country(country_id, type_id);
+
+-- Refresh example:
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_types_by_country;
+
 -- Refresh examples:
 -- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_duration_stats;
 -- REFRESH MATERIALIZED VIEW CONCURRENTLY admin_simulation_throughput_hourly;

@@ -217,6 +217,7 @@ CREATE TABLE teams (
                   CHECK (created_by IN ('manual', 'ai')),
     created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMP,
+    active        BOOLEAN      DEFAULT TRUE,
     CONSTRAINT fk_teams_user   FOREIGN KEY (user_id)   REFERENCES users(id),
     CONSTRAINT fk_teams_format FOREIGN KEY (format_id) REFERENCES formats(id)
 );
@@ -371,3 +372,13 @@ COMMENT ON COLUMN optimized_configurations.recommended_spread_id IS 'Spread de E
 COMMENT ON COLUMN optimized_configurations.recommended_moves     IS 'JSON array de move IDs recomendados';
 COMMENT ON COLUMN optimized_configurations.win_rate_improvement  IS 'Mejora de win rate en %';
 COMMENT ON COLUMN optimized_configurations.confidence_score      IS 'Confianza de la recomendación (0-100)';
+
+-- =====================================================
+-- Prevent physical DELETE on teams to preserve analytic data
+-- Use soft-delete: UPDATE teams SET active = FALSE
+-- =====================================================
+CREATE OR REPLACE FUNCTION prevent_teams_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'PHYSICAL_DELETE_FORBIDDEN: Physical DELETE on "teams" is disabled. Use UPDATE teams SET active = FALSE to deactivate instead.'; RETURN OLD; END; $$;
+
+-- install trigger (idempotent)
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_prevent_delete_teams') THEN CREATE TRIGGER trg_prevent_delete_teams BEFORE DELETE ON teams FOR EACH ROW EXECUTE FUNCTION prevent_teams_delete(); END IF; END$$;
+

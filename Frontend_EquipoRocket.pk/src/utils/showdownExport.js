@@ -63,18 +63,34 @@ const formatPokemonName = (name) => {
  * @param {object} pokemon - Objeto de PokéAPI
  * @param {object} config  - Configuración personalizada opcional
  */
-const pokemonToShowdown = (pokemon, config = {}) => {
-  const name     = formatPokemonName(pokemon.name);
-  const item     = config.item     || '';          // "@ Leftovers" o vacío
-  const ability  = config.ability  || '';          // puede venir de la API
-  const level    = config.level    || 100;
-  const nature   = config.nature   || 'Hardy';     // naturaleza neutra por defecto
-  const evs      = config.evs      || '';          // "252 HP / 4 Atk / 252 Spe"
-  const ivs      = config.ivs      || '';
-  const moves    = config.moves    || ['', '', '', ''];
-  const shiny    = config.shiny    || false;
-  const gender   = config.gender   || '';          // 'M', 'F' o ''
-  const nickname = config.nickname || '';
+const pokemonToShowdown = (pokemon) => {
+  const name     = formatPokemonName(pokemon.name || pokemon.species || pokemon.pokemon || 'MissingNo');
+  const item     = pokemon.item || pokemon.item_name || '';
+  const ability  = pokemon.ability || pokemon.ability_name || '';
+  const level    = pokemon.level || 100;
+  // nature: try spread/nature fields first, fallback to provided nature or 'Hardy'
+  const nature   = pokemon.nature || pokemon.nature_name || (pokemon.spread && pokemon.spread.nature) || 'Hardy';
+  // EVs: if explicit `evs` string provided, use it; else build from spread fields if available
+  let evs = '';
+  if (pokemon.evs) evs = pokemon.evs;
+  else if (pokemon.spread) {
+    const s = pokemon.spread;
+    const parts = [];
+    if (s.hp_evs) parts.push(`${s.hp_evs} HP`);
+    if (s.attack_evs) parts.push(`${s.attack_evs} Atk`);
+    if (s.defense_evs) parts.push(`${s.defense_evs} Def`);
+    if (s.sp_attack_evs) parts.push(`${s.sp_attack_evs} SpA`);
+    if (s.sp_defense_evs) parts.push(`${s.sp_defense_evs} SpD`);
+    if (s.speed_evs) parts.push(`${s.speed_evs} Spe`);
+    evs = parts.join(' / ');
+  }
+  const ivs      = pokemon.ivs || '';
+  // moves may be array of strings or objects
+  const movesArr = Array.isArray(pokemon.moves) ? pokemon.moves.map(m => (typeof m === 'string' ? m : (m?.name || m?.move || 'Movimiento pendiente'))) : [];
+  const moves    = movesArr.length ? movesArr : ['', '', '', ''];
+  const shiny    = !!pokemon.shiny;
+  const gender   = pokemon.gender || '';
+  const nickname = pokemon.nickname || pokemon.nick || '';
 
   const lines = [];
 
