@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getTeams, deleteTeam as apiDeleteTeam, postTeamFeedback, getTeamFeedback } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
-import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle, FaThumbsUp, FaThumbsDown } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
 // Mock data while backend is not connected
 const MOCK_TEAMS = [
@@ -239,19 +239,19 @@ function TeamCard({ team, onEdit, onDelete }) {
             try {
               await postTeamFeedback(team.id, 'good');
               setFeedbackCounts((s) => ({ ...s, wins: (s.wins || 0) + 1 }));
-              alert('Gracias por tu feedback positivo');
+              alert('Victoria registrada');
             } catch (err) {
               console.error('Feedback error', err.message || err);
-              alert('No se pudo enviar feedback');
+              alert('No se pudo registrar la victoria');
             }
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
         >
-          <FaThumbsUp /> Bueno
+          <FaArrowUp /> Victorias
         </button>
         <div style={{ marginLeft: 6 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
-            <FaThumbsUp style={{ opacity: 0.95 }} />
+            <FaArrowUp style={{ opacity: 0.95 }} />
             {feedbackCounts.wins}
           </span>
         </div>
@@ -262,19 +262,19 @@ function TeamCard({ team, onEdit, onDelete }) {
             try {
               await postTeamFeedback(team.id, 'bad');
               setFeedbackCounts((s) => ({ ...s, loses: (s.loses || 0) + 1 }));
-              alert('Gracias por tu feedback');
+              alert('Derrota registrada');
             } catch (err) {
               console.error('Feedback error', err.message || err);
-              alert('No se pudo enviar feedback');
+              alert('No se pudo registrar la derrota');
             }
           }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}
         >
-          <FaThumbsDown /> Malo
+          <FaArrowDown /> Derrotas
         </button>
         <div style={{ marginLeft: 6 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,1)', color: '#fff', padding: '4px 8px', borderRadius: 999, fontWeight: 700, fontSize: 13 }}>
-            <FaThumbsDown style={{ opacity: 0.95 }} />
+            <FaArrowDown style={{ opacity: 0.95 }} />
             {feedbackCounts.loses}
           </span>
         </div>
