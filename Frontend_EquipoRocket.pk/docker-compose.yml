@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: frontend_equiporocket
     ports:
       - "3000:3000"
     environment:
@@ -20,10 +18,6 @@ services:
     networks:
       - equiporocket-net
     restart: unless-stopped
-    depends_on:
-      - ms_auth
-      - ms_usuarios
-      - ms_pokemon
 
 networks:
   equiporocket-net:

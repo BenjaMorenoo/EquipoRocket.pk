@@ -3,16 +3,16 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (el asterisco hace que el lockfile sea opcional)
+COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Instalar TODAS las dependencias necesarias para poder compilar
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (ahora sí encontrará Vite)
 RUN npm run build
 
 # ── Stage 2: Runtime ──
