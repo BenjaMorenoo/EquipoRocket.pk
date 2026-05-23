@@ -93,7 +93,6 @@ function AppShell() {
         {currentPage === 'profile' && user && <UserProfile onNavigate={navigate} />}
         {currentPage === 'admin'   && user?.is_admin && !previewMode && <AdminPanel onPreviewAsUser={handlePreviewAsUser} />}
         {currentPage === 'sim'     && user && <Simulations onNavigate={navigate} />}
-        {currentPage === 'ranking' && <PlaceholderPage title="Rankings" icon="🏆" description="Los equipos más usados en la meta competitiva." />}
         {currentPage === 'mypokemon' && <MisPokemon onNavigate={navigate} />}
       </main>
     </div>
