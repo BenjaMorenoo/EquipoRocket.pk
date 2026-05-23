@@ -87,6 +87,27 @@ export const getTypesByCountry = async (req, res) => {
     // Use materialized view for performance and stability (includes inactive teams)
     const sql = `SELECT country_id, country, type_id, type, uses FROM admin_types_by_country ORDER BY country NULLS LAST, uses DESC;`;
     const { rows } = await query(sql);
+    // If materialized view is not populated yet, fallback to a live aggregation
+    if (!rows.length) {
+      const liveSql = `
+SELECT
+  c.id AS country_id,
+  c.name AS country,
+  ty.id AS type_id,
+  ty.name AS type,
+  COUNT(*) AS uses
+FROM team_pokemon tp
+JOIN teams te ON tp.team_id = te.id
+JOIN users u ON te.user_id = u.id
+LEFT JOIN countries c ON u.country_id = c.id
+JOIN pokemon_types pt ON tp.pokemon_id = pt.pokemon_id AND COALESCE(pt.slot,1) = 1
+JOIN types ty ON pt.type_id = ty.id
+GROUP BY c.id, c.name, ty.id, ty.name
+ORDER BY c.name NULLS LAST, uses DESC;
+      `;
+      const { rows: liveRows } = await query(liveSql);
+      return res.json({ success: true, data: liveRows });
+    }
     return res.json({ success: true, data: rows });
   } catch (e) {
     console.error('[ms_usuarios] getTypesByCountry', e.message || e);

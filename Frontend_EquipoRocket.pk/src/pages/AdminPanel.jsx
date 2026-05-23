@@ -333,7 +333,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '14px' }}>
                 <div>
                   {/* Reuse existing Users table below by moving its JSX here */}
-                  <div style={{ marginBottom: 8 }}> (Users management)</div>
+                  <div style={{ marginBottom: 8 }}></div>
                 </div>
                 <div>
                   <AdminUsersByMonth />
