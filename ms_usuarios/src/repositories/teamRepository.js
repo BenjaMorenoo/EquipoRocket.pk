@@ -9,6 +9,7 @@ class TeamRepository {
   replacePokemons(team_id,pokemons){ return Model.replaceTeamPokemons(team_id,pokemons); }
   addFeedback(team_id, user_id, type){ return Model.addTeamFeedback(team_id, user_id, type); }
   getFeedbackCounts(team_id){ return Model.getFeedbackCounts(team_id); }
+  updatePokemonSpread(team_pokemon_id, user_id, spread_id){ return Model.updateTeamPokemonSpread(team_pokemon_id, user_id, spread_id); }
 }
 
 export default new TeamRepository();

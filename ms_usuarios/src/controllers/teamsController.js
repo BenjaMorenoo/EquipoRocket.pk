@@ -2,6 +2,25 @@ import TeamRepo from '../repositories/teamRepository.js';
 import { query } from '../config/db.js';
 import fetch from 'node-fetch';
 
+export const updatePokemonSpread = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const teamPokemonId = Number(req.params.teamPokemonId);
+    const userId = req.user.id;
+    const { spread_id } = req.body;
+    if (isNaN(teamPokemonId)) return res.status(400).json({ success:false, error: 'INVALID_POKEMON_ID' });
+    // optional: verify teamId matches the team_pokemon.team_id
+    // call repository method which checks ownership
+    const updated = await TeamRepo.updatePokemonSpread(teamPokemonId, userId, spread_id ?? null);
+    if (!updated) return res.status(404).json({ success:false, error: 'NOT_FOUND_OR_FORBIDDEN' });
+    return res.json({ success:true, data: { team_pokemon: updated } });
+  } catch (e) {
+    console.error('[ms_usuarios] updatePokemonSpread', e.message || e);
+    if (e.message === 'SPREAD_NOT_FOUND') return res.status(404).json({ success:false, error: 'SPREAD_NOT_FOUND' });
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
 export const listTeams = async (req, res) => {
   try {
     const userId = req.user.id;

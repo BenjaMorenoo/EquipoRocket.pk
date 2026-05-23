@@ -242,6 +242,14 @@ CREATE TABLE spreads (
     CONSTRAINT fk_spreads_nature FOREIGN KEY (nature_id) REFERENCES natures(id)
 );
 
+CREATE TABLE pokemon_spreads (
+    pokemon_id INT NOT NULL,
+    spread_id  INT NOT NULL,
+    CONSTRAINT pk_pokemon_spreads PRIMARY KEY (pokemon_id, spread_id),
+    CONSTRAINT fk_ps_pokemon FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ps_spread   FOREIGN KEY (spread_id)  REFERENCES spreads(id) ON DELETE CASCADE
+);
+
 CREATE TABLE team_pokemon (
     id          SERIAL PRIMARY KEY,
     team_id     INT,

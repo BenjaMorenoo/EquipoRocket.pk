@@ -248,3 +248,20 @@ export const persistBestConfiguration = async (payload) => {
   const { data } = await axios.post(`${msMonteBase}/persist_best`, payload);
   return data;
 };
+
+export const getSpreadsList = async (pokemonName) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const url = `${msUsersBase}/data/spreads${pokemonName ? `?pokemon=${encodeURIComponent(pokemonName)}` : ''}`;
+  const { data } = await axios.get(url, { headers });
+  return data;
+};
+
+export const createSpread = async ({ nature, ev }) => {
+  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+  const token = localStorage.getItem('pk_token');
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  const { data } = await axios.post(`${msUsersBase}/data/spreads`, { nature, ev }, { headers });
+  return data;
+};

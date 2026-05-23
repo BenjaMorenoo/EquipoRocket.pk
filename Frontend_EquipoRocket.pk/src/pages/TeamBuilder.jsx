@@ -10,7 +10,9 @@ import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
 import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
 import AssistedBuilderModal from '../components/AssistedBuilderModal';
-import { getPokemon, getBackendPokemon, getMovesList, getAbilitiesList, getItemsList } from '../services/api';
+import { getPokemon, getBackendPokemon, getMovesList, getAbilitiesList, getItemsList, getSpreadsList } from '../services/api';
+import { createSpread } from '../services/api';
+import SpreadModal from '../components/SpreadModal';
 
 const TEAM_SIZE = 6;
 
@@ -31,6 +33,9 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
   const [movesOptions, setMovesOptions] = useState([]);
   const [abilitiesOptions, setAbilitiesOptions] = useState([]);
   const [itemsOptions, setItemsOptions] = useState([]);
+  const [spreadsOptions, setSpreadsOptions] = useState([]);
+  const [spreadModalOpen, setSpreadModalOpen] = useState(false);
+  const [computedStats, setComputedStats] = useState(null);
 
   const filledCount    = team.filter(Boolean).length;
   const totalBaseStats = team.filter(Boolean).reduce((a, pk) => a + (pk?.stats?.reduce((s, st) => s + st.base_stat, 0) || 0), 0);
@@ -69,9 +74,11 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
             const full = backend?.data?.pokemon || backend || { name };
             if (api) { full.sprites = api.sprites; full.types = api.types; full.stats = api.stats; }
             // attach ability/item/moves from team payload
-            full.ability = pk.ability || pk.ability_name || null;
-            full.item = pk.item || pk.item_name || null;
-            full.moves = (pk.moves || []).map(m => (m?.name || m));
+              full.ability = pk.ability || pk.ability_name || null;
+              full.item = pk.item || pk.item_name || null;
+              full.moves = (pk.moves || []).map(m => (m?.name || m));
+            full.spread_id = pk.spread_id || null;
+            full.team_pokemon_id = pk.team_pokemon_id || pk.id || null;
             arr[(pk.slot || 1) - 1] = full;
           } catch (e) {
             // ignore per-pokemon failures
@@ -91,6 +98,11 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
         // items are global
         const it = await getItemsList();
         setItemsOptions(it?.data?.items || []);
+        // spreads list (global catalog)
+        try {
+          const sp = await getSpreadsList();
+          setSpreadsOptions(sp?.data?.spreads || []);
+        } catch (e) { console.debug('getSpreadsList failed', e.message || e); }
       } catch (e) { console.debug('getItemsList failed', e.message || e); }
     })();
   }, []);
@@ -108,11 +120,57 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
         const mopts = (pk.moves || []).map(m => ({ id: m.id, name: m.name }));
         setAbilitiesOptions(aopts);
         setMovesOptions(mopts);
+        // load spreads relevant to this pokemon
+        try {
+          const spRes = await getSpreadsList(selectedPk.name);
+          setSpreadsOptions(spRes?.data?.spreads || []);
+        } catch (e) { console.debug('getSpreadsList(pokemon) failed', e.message || e); }
       } catch (e) {
         console.debug('failed to load pokemon-specific data', e.message || e);
       }
     })();
   }, [selectedPk]);
+
+  // Clear spreads when no pokemon selected
+  useEffect(() => {
+    if (!selectedPk) setSpreadsOptions([]);
+  }, [selectedPk]);
+
+  // Compute displayed stats incorporating spread EVs and nature
+  useEffect(() => {
+    if (!selectedPk) { setComputedStats(null); return; }
+    // find spread object
+    const sp = spreadsOptions.find(s => s.id === selectedPk.spread_id) || null;
+    // base stats from selectedPk.stats (array of { stat: {name}, base_stat })
+    if (!selectedPk.stats) { setComputedStats(null); return; }
+    const statMapName = {
+      hp: 'hp', attack: 'attack', defense: 'defense', 'special-attack': 'sp_attack', 'special-defense': 'sp_defense', speed: 'speed'
+    };
+    // convert spreads ev fields to numbers
+    const evs = sp ? {
+      hp: Number(sp.hp_evs||0), attack: Number(sp.attack_evs||0), defense: Number(sp.defense_evs||0), sp_attack: Number(sp.sp_attack_evs||0), sp_defense: Number(sp.sp_defense_evs||0), speed: Number(sp.speed_evs||0)
+    } : null;
+    const increased = sp?.increased_stat || null;
+    const decreased = sp?.decreased_stat || null;
+    const normalize = (s) => (s || '').toString().replace('_', '-');
+    const newStats = selectedPk.stats.map(s => {
+      const key = s.stat.name;
+      const mapped = statMapName[key] || key;
+      let val = s.base_stat || 0;
+      if (evs && evs[mapped] !== undefined) {
+        val = val + Math.floor(evs[mapped] / 4);
+      }
+      // apply nature modifier (+10% / -10%) to non-HP stats
+      if (mapped !== 'hp') {
+        const incNorm = normalize(increased);
+        const decNorm = normalize(decreased);
+        if (incNorm && (incNorm === key || incNorm === mapped)) val = Math.round(val * 1.1);
+        if (decNorm && (decNorm === key || decNorm === mapped)) val = Math.round(val * 0.9);
+      }
+      return { ...s, base_stat: val };
+    });
+    setComputedStats(newStats);
+  }, [selectedPk, spreadsOptions]);
 
   /* ── Guardar (solo usuarios registrados) ── */
   const handleSave = async () => {
@@ -268,17 +326,20 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                   </div>
                 </div>
               </div>
-              <PokemonStatsRadar pokemon={selectedPk} />
+              <PokemonStatsRadar pokemon={computedStats ? { ...selectedPk, stats: computedStats } : selectedPk} />
               <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginTop:'8px' }}>
-                {(selectedPk.stats || []).map((s, idx) => (
-                  <div key={s?.stat?.name || idx} style={{ display:'flex', justifyContent:'space-between', fontSize:'12px' }}>
-                    <span style={{ color: STAT_COLORS[s?.stat?.name]||'var(--color-pk-subtle)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{STAT_LABELS[s?.stat?.name]||s?.stat?.name}</span>
-                    <span style={{ color:'var(--color-pk-text)', fontFamily:'var(--font-heading)', fontWeight:600 }}>{s?.base_stat ?? '-'}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const statsToShow = computedStats || selectedPk.stats || [];
+                  return statsToShow.map((s, idx) => (
+                    <div key={s?.stat?.name || idx} style={{ display:'flex', justifyContent:'space-between', fontSize:'12px' }}>
+                      <span style={{ color: STAT_COLORS[s?.stat?.name]||'var(--color-pk-subtle)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{STAT_LABELS[s?.stat?.name]||s?.stat?.name}</span>
+                      <span style={{ color:'var(--color-pk-text)', fontFamily:'var(--font-heading)', fontWeight:600 }}>{s?.base_stat ?? '-'}</span>
+                    </div>
+                  ));
+                })()}
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', borderTop:'1px solid var(--color-pk-border)', paddingTop:'6px', marginTop:'2px' }}>
                   <span style={{ color:'var(--color-pk-muted)', fontFamily:'var(--font-heading)', fontWeight:700 }}>BST</span>
-                  <span style={{ color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{(selectedPk.stats || []).reduce((a,s) => a + (s?.base_stat || 0), 0)}</span>
+                  <span style={{ color:'var(--color-pk-yellow)', fontFamily:'var(--font-heading)', fontWeight:700 }}>{(() => { const arr = computedStats || selectedPk.stats || []; return arr.reduce((a,s) => a + (s?.base_stat || 0), 0); })()}</span>
                 </div>
               </div>
               {/* Editable fields: ability, item, moves */}
@@ -298,6 +359,37 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                   <option value="">(ninguno)</option>
                   {itemsOptions.map(it => (<option key={it.id} value={it.name}>{it.name}</option>))}
                 </select>
+
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Spread</label>
+                <select value={selectedPk.spread_id || ''} onChange={(e) => {
+                  const v = e.target.value ? Number(e.target.value) : null;
+                  setSelectedPk(prev => ({ ...prev, spread_id: v }));
+                  setTeam(prev => { const n = [...prev]; if (targetSlot !== null) n[targetSlot] = { ...n[targetSlot], spread_id: v }; return n; });
+                }} className="pk-input">
+                  <option value="">(ninguno)</option>
+                  {spreadsOptions.map(s => {
+                    const evs = [s.hp_evs, s.attack_evs, s.defense_evs, s.sp_attack_evs, s.sp_defense_evs, s.speed_evs].map(n => n??0).join('/')
+                    return (<option key={s.id} value={s.id}>{s.nature ? `${s.nature} (${evs})` : `Spread ${s.id} (${evs})`}</option>)
+                  })}
+                </select>
+                {spreadsOptions.length === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--color-pk-muted)', marginTop: 6 }}>No hay spreads cargados en la base de datos.</div>
+                )}
+                <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                  <button className="pk-btn" onClick={async () => {
+                    // try to assign spread immediately via PATCH if we have team_pokemon_id
+                    if (!selectedPk || !selectedPk.spread_id) return alert('Selecciona un spread primero');
+                    const tpId = selectedPk.team_pokemon_id || team[targetSlot]?.team_pokemon_id || null;
+                    if (!tpId) return alert('Este Pokémon aún no está persistido en el equipo. Guarda el equipo completo para aplicar spreads.');
+                    try {
+                      const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
+                      const token = localStorage.getItem('pk_token');
+                      const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+                      await fetch(`${msUsersBase}/teams/${initialTeam?.id}/pokemon/${tpId}/spread`, { method:'PATCH', headers, body: JSON.stringify({ spread_id: selectedPk.spread_id }) });
+                      alert('Spread asignado correctamente.');
+                    } catch (e) { alert('Error asignando spread: '+(e.message||e)); }
+                  }} style={{ padding:'6px 10px', fontSize:12 }}>Asignar ahora</button>
+                </div>
 
                 <label style={{ fontSize: 12, fontWeight: 700 }}>Moves (máx.4)</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -384,6 +476,26 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
           onClose={() => setAuthPrompt(null)}
         />
       )}
+      <SpreadModal
+        open={spreadModalOpen}
+        onClose={() => setSpreadModalOpen(false)}
+        onCreate={async ({ nature, ev }) => {
+          try {
+            const resp = await createSpread({ nature, ev });
+            const newSpread = resp?.data?.spread;
+            if (newSpread) {
+              // attach nature name for display
+              newSpread.nature = newSpread.nature || nature;
+              setSpreadsOptions(prev => [ ...prev, newSpread ]);
+              // select it for the current pokemon
+              setSelectedPk(prev => ({ ...prev, spread_id: newSpread.id }));
+              setTeam(prev => { const n = [...prev]; if (targetSlot !== null) n[targetSlot] = { ...n[targetSlot], spread_id: newSpread.id }; return n; });
+              setSpreadModalOpen(false);
+              alert('Spread creado y seleccionado.');
+            }
+          } catch (e) { alert('Error creando spread: '+(e.message||e)); }
+        }}
+      />
     </div>
   );
 }

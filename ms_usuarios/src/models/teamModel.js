@@ -145,3 +145,29 @@ export const addTeamFeedback = async (team_id, user_id, type = 'good') => {
     client.release();
   }
 };
+
+export const updateTeamPokemonSpread = async (team_pokemon_id, user_id, spread_id) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    // verify ownership: team_pokemon -> teams.user_id == user_id
+    const { rows: owner } = await client.query(`
+      SELECT tp.id FROM team_pokemon tp JOIN teams t ON tp.team_id = t.id WHERE tp.id = $1 AND t.user_id = $2 LIMIT 1
+    `, [team_pokemon_id, user_id]);
+    if (!owner.length) {
+      await client.query('ROLLBACK');
+      return null; // caller will handle not found / forbidden
+    }
+    // validate spread exists (allow null to clear)
+    if (spread_id !== null && spread_id !== undefined) {
+      const { rows: srows } = await client.query(`SELECT id FROM spreads WHERE id = $1 LIMIT 1`, [spread_id]);
+      if (!srows.length) { await client.query('ROLLBACK'); throw new Error('SPREAD_NOT_FOUND'); }
+    }
+    const { rows } = await client.query(`UPDATE team_pokemon SET spread_id = $1 WHERE id = $2 RETURNING *`, [spread_id ?? null, team_pokemon_id]);
+    await client.query('COMMIT');
+    return rows[0] || null;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally { client.release(); }
+};

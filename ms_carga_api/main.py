@@ -243,6 +243,12 @@ def process_payload(conn, payload):
                 continue
             nid = upsert_nature(conn, nature)
             sid = insert_spread(conn, nid, ev)
+            # link spread to current pokemon
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO pokemon_spreads (pokemon_id, spread_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (pokemon_id, sid))
+            except Exception:
+                pass
             inserted['spreads'] += 1
 
     else:

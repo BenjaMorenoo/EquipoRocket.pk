@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { listTeams, createTeam, getTeam, updateTeam, deleteTeam, addFeedback, getFeedback } from '../controllers/teamsController.js';
+import { listTeams, createTeam, getTeam, updateTeam, deleteTeam, addFeedback, getFeedback, updatePokemonSpread } from '../controllers/teamsController.js';
 
 const router = Router();
 
@@ -11,6 +11,7 @@ router.get('/:id/feedback', getFeedback);
 router.get('/', requireAuth, listTeams);
 router.post('/', requireAuth, createTeam);
 router.get('/:id', requireAuth, getTeam);
+router.patch('/:id/pokemon/:teamPokemonId/spread', requireAuth, updatePokemonSpread);
 router.put('/:id', requireAuth, updateTeam);
 router.delete('/:id', requireAuth, deleteTeam);
 router.post('/:id/feedback', requireAuth, addFeedback);

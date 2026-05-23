@@ -244,6 +244,9 @@ function FilledSlot({ pokemon, slotNumber, onRemove, onClick }) {
             {types.map((t) => (
               <TypeBadge key={t.type.name} type={t.type.name} size="xs" />
             ))}
+            {pokemon.spread_id ? (
+              <div style={{ fontSize: '11px', color: 'var(--color-pk-muted)', marginTop: 6 }}>Spread: #{pokemon.spread_id}</div>
+            ) : null}
           </div>
         </div>
       </div>
