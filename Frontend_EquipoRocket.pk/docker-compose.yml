@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Frontend environment variables for microservices communication
+      VITE_MS_USUARIOS_URL: ${VITE_MS_USUARIOS_URL:-http://ms_usuarios:3003/api}
+      VITE_MS_POKEMON_URL: ${VITE_MS_POKEMON_URL:-http://ms_pokemon:3002/api}
+      VITE_MS_AUTH_URL: ${VITE_MS_AUTH_URL:-http://ms_auth:3001/api}
+      VITE_MS_CARGA_API_URL: ${VITE_MS_CARGA_API_URL:-http://ms_carga_api:8000}
+      VITE_MS_MONTECARLO_URL: ${VITE_MS_MONTECARLO_URL:-http://ms_montecarlo:8010}
+      VITE_MS_ASISTENCIA_URL: ${VITE_MS_ASISTENCIA_URL:-http://ms_asistencia:8005}
+      VITE_API_URL: ${VITE_API_URL:-http://ms_usuarios:3003/api}
+    networks:
+      - equiporocket-net
+    restart: unless-stopped
+    depends_on:
+      - ms_auth
+      - ms_usuarios
+      - ms_pokemon
+
+networks:
+  equiporocket-net:
+    external: true
