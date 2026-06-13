@@ -4,11 +4,19 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 import os
 import json
+import random
 from datetime import datetime
 import psycopg2
+from psycopg2.extras import execute_values
 
 from api_client import fetch_api, list_pokemon_entries
-from montecarlo import search_best_team
+from montecarlo import (
+    search_best_team,
+    evaluate_team,
+    generate_random_config_for_pokemon,
+    find_entries_by_names,
+    pick_default_config,
+)
 
 app = FastAPI(title="ms_montecarlo")
 
@@ -32,6 +40,7 @@ class SimulateRequest(BaseModel):
     persist_moves: bool = False
     iterations: int = 1000
     sims: int = 500
+    random_seed: Optional[int] = Field(default=None, description="Semilla para reproducir esta corrida Monte Carlo; si no se entrega se genera una aleatoria")
 
 
 def get_db_conn():
@@ -112,14 +121,19 @@ def simulate(req: SimulateRequest):
     if not pool:
         raise HTTPException(status_code=400, detail="Pool empty from API or DB")
 
+    # Semilla para que esta corrida Monte Carlo sea reproducible (trazabilidad)
+    random_seed = req.random_seed if req.random_seed is not None else random.getrandbits(63)
+    algorithm_version = 'v1'
+
     # run search
-    best_wr, best_team = search_best_team(
+    best_wr, best_team, best_iterations = search_best_team(
         pool,
         team_size=len(req.team),
         iterations=req.iterations,
         sims=req.sims,
         fixed_teamA_names=req.team,
         fixed_teamB_names=req.opponent,
+        random_seed=random_seed,
     )
 
     win_rate = float(best_wr)
@@ -187,8 +201,8 @@ def simulate(req: SimulateRequest):
         cur.execute(
             """INSERT INTO battle_simulations (
                   user_id, team_a_id, team_b_id, winner_team_id, team_a_score, team_b_score, team_a_win_probability, team_b_win_probability,
-                  simulation_count, simulation_type, prediction, created_at, completed_at)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW()) RETURNING id""",
+                  simulation_count, simulation_type, prediction, random_seed, algorithm_version, created_at, completed_at)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW()) RETURNING id""",
             [
                 req.user_id,
                 team_a_id,
@@ -198,12 +212,28 @@ def simulate(req: SimulateRequest):
                 team_b_score,
                 team_a_prob,
                 team_b_prob,
-                req.iterations,
+                req.sims,
                 'montecarlo',
                 best_summary,
+                random_seed,
+                algorithm_version,
             ],
         )
         sim_id = cur.fetchone()[0]
+
+        # Persistir cada iteración individual de la configuración ganadora
+        # (trazabilidad de la simulación Monte Carlo, corrección punto 1)
+        if best_iterations:
+            execute_values(
+                cur,
+                """INSERT INTO simulation_iterations
+                       (simulation_id, iteration_num, winner, team_a_survivors, team_b_survivors, random_seed)
+                   VALUES %s""",
+                [
+                    (sim_id, it['iteration'], it['winner'], None, None, random_seed)
+                    for it in best_iterations
+                ],
+            )
 
         # Optionally persist best configuration into optimized_configurations in a later step
         conn.commit()
@@ -245,6 +275,40 @@ def simulate(req: SimulateRequest):
                     cur2.execute("INSERT INTO items (name) VALUES (%s) RETURNING id", (name,))
                     return cur2.fetchone()[0]
 
+                def _get_or_create_spread_id(spread_obj):
+                    if not isinstance(spread_obj, dict):
+                        return None
+                    nature_name = spread_obj.get('nature')
+                    ev_string = spread_obj.get('ev')
+                    if not nature_name or not ev_string:
+                        return None
+                    cur2.execute("SELECT id FROM natures WHERE lower(name)=lower(%s) LIMIT 1", (nature_name,))
+                    r = cur2.fetchone()
+                    if r:
+                        nature_id = r[0]
+                    else:
+                        cur2.execute("INSERT INTO natures (name) VALUES (%s) RETURNING id", (nature_name,))
+                        nature_id = cur2.fetchone()[0]
+                    parts = [int(x) if x.strip().isdigit() else 0 for x in str(ev_string).split('/')]
+                    while len(parts) < 6:
+                        parts.append(0)
+                    hp_ev, atk_ev, def_ev, spa_ev, spd_ev, spe_ev = parts[:6]
+                    cur2.execute(
+                        """SELECT id FROM spreads
+                               WHERE nature_id=%s AND hp_evs=%s AND attack_evs=%s AND defense_evs=%s
+                                 AND sp_attack_evs=%s AND sp_defense_evs=%s AND speed_evs=%s LIMIT 1""",
+                        (nature_id, hp_ev, atk_ev, def_ev, spa_ev, spd_ev, spe_ev),
+                    )
+                    r = cur2.fetchone()
+                    if r:
+                        return r[0]
+                    cur2.execute(
+                        """INSERT INTO spreads (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs)
+                               VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                        (nature_id, hp_ev, atk_ev, def_ev, spa_ev, spd_ev, spe_ev),
+                    )
+                    return cur2.fetchone()[0]
+
                 def _find_or_create_team_pokemon(team_id, pokemon_name):
                     cur2.execute("SELECT id FROM pokemon WHERE lower(name)=lower(%s) LIMIT 1", (pokemon_name,))
                     p = cur2.fetchone()
@@ -260,7 +324,15 @@ def simulate(req: SimulateRequest):
                     cur2.execute("INSERT INTO team_pokemon (team_id, pokemon_id, slot) VALUES (%s,%s,%s) RETURNING id", (team_id, pokemon_id, slot))
                     return cur2.fetchone()[0]
 
-                for p in best_team:
+                # Oponente fijo y semilla para re-evaluar variantes alternativas
+                # (corrección punto 2: configuration_comparisons)
+                opponent_fixed_cmp = None
+                if req.opponent:
+                    opponent_fixed_cmp = [pick_default_config(pe) for pe in find_entries_by_names(pool, req.opponent)]
+                comparison_rng = random.Random(random_seed)
+                comparison_sims = min(req.sims, 100)
+
+                for poke_index, p in enumerate(best_team):
                     try:
                         name = (p.get('name') or p.get('pokemon') or p.get('display_name') or '').strip()
                         if not name:
@@ -303,6 +375,58 @@ def simulate(req: SimulateRequest):
                             "INSERT INTO optimized_configurations (battle_simulation_id, team_pokemon_id, recommended_ability_id, recommended_item_id, recommended_moves, win_rate_improvement, confidence_score, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())",
                             [sim_id, tp_id, ability_id, item_id, json.dumps(move_ids), None, None],
                         )
+
+                        # --- configuration_comparisons: justificar la recomendación ---
+                        # Variante 'original': la configuración elegida por la búsqueda Monte Carlo
+                        spread_id = _get_or_create_spread_id(p.get('spread'))
+                        comparisons = [{
+                            'variant': 'original',
+                            'ability_id': ability_id,
+                            'item_id': item_id,
+                            'spread_id': spread_id,
+                            'simulations_run': req.sims,
+                            'wins': int(round(best_wr * req.sims)),
+                            'win_rate': round(best_wr * 100, 2),
+                        }]
+
+                        # Variantes alternativas: cambiar item/ability/spread de este Pokémon
+                        # y re-evaluar el equipo resultante para comparar su win rate
+                        pool_entries = find_entries_by_names(pool, [name])
+                        if pool_entries and comparison_sims > 0:
+                            pool_entry = pool_entries[0]
+                            for variant_name in ('alt_item_1', 'alt_spread_1'):
+                                alt_config = generate_random_config_for_pokemon(pool_entry, rng=comparison_rng)
+                                alt_team = list(best_team)
+                                alt_team[poke_index] = alt_config
+                                alt_wr, _ = evaluate_team(pool, alt_team, sims=comparison_sims, opponent_fixed=opponent_fixed_cmp, rng=comparison_rng)
+
+                                alt_ability_name = None
+                                alt_a = alt_config.get('ability')
+                                if isinstance(alt_a, dict):
+                                    alt_ability_name = alt_a.get('ability') or alt_a.get('name')
+
+                                alt_item_name = None
+                                alt_it = alt_config.get('item')
+                                if isinstance(alt_it, dict):
+                                    alt_item_name = alt_it.get('item') or alt_it.get('name')
+
+                                comparisons.append({
+                                    'variant': variant_name,
+                                    'ability_id': _get_or_create_ability_id(alt_ability_name),
+                                    'item_id': _get_or_create_item_id(alt_item_name),
+                                    'spread_id': _get_or_create_spread_id(alt_config.get('spread')),
+                                    'simulations_run': comparison_sims,
+                                    'wins': int(round(alt_wr * comparison_sims)),
+                                    'win_rate': round(alt_wr * 100, 2),
+                                })
+
+                        for c in comparisons:
+                            cur2.execute(
+                                """INSERT INTO configuration_comparisons
+                                       (battle_simulation_id, team_pokemon_id, config_variant, ability_id, item_id, spread_id, simulations_run, wins, win_rate)
+                                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                                [sim_id, tp_id, c['variant'], c['ability_id'], c['item_id'], c['spread_id'], c['simulations_run'], c['wins'], c['win_rate']],
+                            )
                     except Exception:
                         continue
 

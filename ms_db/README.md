@@ -126,6 +126,53 @@ Solución de problemas
 Archivo de esquema
 - El archivo del esquema está en [ms_db/schema.sql](schema.sql).
 
+## Modelo de datos
+
+`schema.sql` define el **modelo relacional físico** del sistema, en notación de tabla
+estilo "crow's foot" (claves primarias/foráneas y cardinalidades implícitas en las FK),
+no un DER (Diagrama Entidad-Relación) conceptual abstracto. Cada `CREATE TABLE`
+corresponde 1:1 a una tabla real de PostgreSQL ya normalizada. Ver
+[docs/ARQUITECTURA.md](../docs/ARQUITECTURA.md) para el diagrama de arquitectura completo
+y los patrones de diseño aplicados.
+
+### Trazabilidad de simulaciones Monte Carlo (corrección)
+
+Para dejar evidencia de las iteraciones individuales que ejecuta `ms_montecarlo` y de las
+recomendaciones que genera, `battle_simulations` ahora incluye:
+
+- `random_seed` (`BIGINT`): semilla pseudoaleatoria de la corrida, para poder reproducirla.
+- `algorithm_version` (`VARCHAR(20)`, default `'v1'`): versión del algoritmo Monte Carlo usado.
+
+Además se agregaron dos tablas nuevas:
+
+- `simulation_iterations`: una fila por cada combate individual simulado para la
+  configuración recomendada (`battle_simulations.simulation_count` filas por simulación),
+  indicando el ganador (`A`/`B`) de cada iteración.
+- `configuration_comparisons`: variantes de configuración (`original`, `alt_item_1`,
+  `alt_spread_1`, ...) evaluadas para cada Pokémon del equipo, con su win rate, que
+  justifican la recomendación guardada en `optimized_configurations`.
+
+Ver detalle completo en [ms_montecarlo/README.md](../ms_montecarlo/README.md).
+
+### `team_pokemon` (conceptualmente "team_member_configuration")
+
+La tabla `team_pokemon` guarda la configuración completa (habilidad, item, spread de
+EVs/naturaleza, tera tipo y movimientos vía `team_pokemon_moves`) de cada Pokémon dentro
+de un equipo. El nombre físico se mantiene como `team_pokemon` por compatibilidad con el
+código existente; **"team_member_configuration"** es el nombre conceptual usado en la
+documentación para reflejar mejor su propósito (no requiere cambios de código).
+
+### `synergy_data`: origen y limitaciones
+
+`synergy_data` almacena sinergia **por pares** entre dos Pokémon. Estos datos provienen
+de la información de "teammates" de la API externa (Pikalytics) cargada por
+`ms_carga_api` en `external_raw`; `ms_asistencia` construye con esos datos una matriz de
+sinergia (`engine.PokemonAnalyticsEngine`) y la persiste por pares vía `POST
+/store/synergy`. Es una **simplificación**: la sinergia de un equipo completo (3-6
+Pokémon) no se obtiene sumando o promediando filas de esta tabla en SQL, sino que se
+calcula a posteriori en `ms_asistencia/engine.py`
+(`PokemonAnalyticsEngine.analyze_team_synergy`), que promedia la sinergia de todos los
+pares del equipo. Ver [ms_asistencia/README.md](../ms_asistencia/README.md).
 
 Comando para iniciar la DB por primera vez e insertar un admin por defecto
 - docker compose exec ms_db npm run init-db

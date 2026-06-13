@@ -64,8 +64,9 @@ def generate_random_config_for_pokemon(poke, top_moves=6, top_items=3, top_abili
     return p
 
 
-def generate_random_team(pool, team_size=3):
-    sample = random.sample(pool, k=team_size)
+def generate_random_team(pool, team_size=3, rng=None):
+    rng = rng or random
+    sample = rng.sample(pool, k=team_size)
     return [pick_default_config(p) for p in sample]
 
 
@@ -76,21 +77,33 @@ def generate_configured_team_from_names(pool, names, top_moves=6, top_items=3, t
     return [generate_random_config_for_pokemon(p, top_moves, top_items, top_abilities, top_spreads, rng=rng) for p in entries]
 
 
-def evaluate_team(pool, team, sims=200, opponent_fixed=None):
+def evaluate_team(pool, team, sims=200, opponent_fixed=None, rng=None):
+    """Evalúa un equipo simulando `sims` combates individuales.
+
+    Devuelve una tupla `(win_rate, iterations)` donde `iterations` es la lista
+    de resultados de cada combate individual (1..sims), con la forma
+    `{'iteration': i, 'winner': 'A'|'B'}`. Esto permite persistir la
+    trazabilidad completa de la corrida Monte Carlo en `simulation_iterations`.
+    """
+    rng = rng or random
     wins = 0
-    for _ in range(sims):
+    iterations = []
+    for i in range(sims):
         if opponent_fixed is not None:
             opp = opponent_fixed
         else:
-            opp = generate_random_team(pool, team_size=len(team))
-        if simulate_battle(team, opp):
+            opp = generate_random_team(pool, team_size=len(team), rng=rng)
+        won = simulate_battle(team, opp, rng=rng)
+        if won:
             wins += 1
-    return wins / sims
+        iterations.append({'iteration': i + 1, 'winner': 'A' if won else 'B'})
+    win_rate = wins / sims if sims else 0.0
+    return win_rate, iterations
 
 
-def search_best_team(pool, team_size=3, iterations=200, sims=200, fixed_teamA_names=None, fixed_teamB_names=None, top_moves=6, top_items=3, top_abilities=2, top_spreads=3):
-    best = (0.0, None)
-    rng = random.Random()
+def search_best_team(pool, team_size=3, iterations=200, sims=200, fixed_teamA_names=None, fixed_teamB_names=None, top_moves=6, top_items=3, top_abilities=2, top_spreads=3, random_seed=None):
+    best = (0.0, None, [])
+    rng = random.Random(random_seed)
 
     opponent_fixed = None
     if fixed_teamB_names:
@@ -106,11 +119,11 @@ def search_best_team(pool, team_size=3, iterations=200, sims=200, fixed_teamA_na
         if teamA_entries:
             team = [generate_random_config_for_pokemon(p, top_moves, top_items, top_abilities, top_spreads, rng=rng) for p in teamA_entries]
         else:
-            team = generate_random_team(pool, team_size=team_size)
+            team = generate_random_team(pool, team_size=team_size, rng=rng)
 
-        wr = evaluate_team(pool, team, sims=sims, opponent_fixed=opponent_fixed)
+        wr, its = evaluate_team(pool, team, sims=sims, opponent_fixed=opponent_fixed, rng=rng)
         if wr > best[0]:
-            best = (wr, team)
+            best = (wr, team, its)
     return best
 
 
