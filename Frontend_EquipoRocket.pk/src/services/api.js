@@ -1,347 +1,106 @@
 // src/services/api.js
 import axios from 'axios';
 
-// ── PokéAPI (public) ────────────────────────────────────────────────────────
-const pokeAPI = axios.create({
-  baseURL: 'https://pokeapi.co/api/v2',
-  timeout: 10000,
-});
+// ── PokéAPI (public)
+const pokeAPI = axios.create({ baseURL: 'https://pokeapi.co/api/v2', timeout: 10000 });
 
-/**
- * Fetch a paginated list of Pokemon names + urls.
- * Default: first 300 (covers Gen 1-3, enough for a demo).
- */
 export const getPokemonList = async (limit = 400, offset = 0) => {
   const { data } = await pokeAPI.get(`/pokemon?limit=${limit}&offset=${offset}`);
-  return data.results; // [{ name, url }]
+  return data.results;
 };
 
-/**
- * Fetch full Pokemon data (types, stats, sprites, etc.)
- */
 export const getPokemon = async (nameOrId) => {
   const { data } = await pokeAPI.get(`/pokemon/${String(nameOrId).toLowerCase()}`);
   return data;
 };
 
-/**
- * Fetch Pokemon species data (for flavor text, genera, etc.)
- */
 export const getPokemonSpecies = async (nameOrId) => {
   const { data } = await pokeAPI.get(`/pokemon-species/${String(nameOrId).toLowerCase()}`);
   return data;
 };
 
-// ── Team / Backend API (placeholder — wire up when microservices are ready) ─
-const backendAPI = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
-});
+// ── API Gateway (use gateway for all backend calls in production)
+// Default to host port 9000 because gateway is mapped to host 9000:8000 in docker-compose
+const GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+// Increase default timeout to handle longer-running backend requests (e.g. asistencia, montecarlo)
+const gatewayAPI = axios.create({ baseURL: GATEWAY_URL, timeout: 60000, headers: { 'Content-Type': 'application/json' } });
 
-// Request interceptor: attach auth token if present
-backendAPI.interceptors.request.use((config) => {
+gatewayAPI.interceptors.request.use((config) => {
   const token = localStorage.getItem('pk_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Response interceptor: unified error handling
-backendAPI.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Error desconocido';
-    console.error('[API Error]', msg);
-    return Promise.reject(new Error(msg));
-  }
-);
-
-// ── Team endpoints ──────────────────────────────────────────────────────────
-export const getTeams = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/teams`, { headers });
-  return data;
-};
-
-export const getTeamById = async (id) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/teams/${id}`, { headers });
-  return data;
-};
-
-export const createTeam = async (team) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.post(`${msUsersBase}/teams`, team, { headers });
-  return data;
-};
-
-export const updateTeam = async (id, team) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.put(`${msUsersBase}/teams/${id}`, team, { headers });
-  return data;
-};
-
-export const deleteTeam = async (id) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.delete(`${msUsersBase}/teams/${id}`, { headers });
-  return data;
-};
-
-// ── User endpoints ──────────────────────────────────────────────────────────
-export const loginUser = async (credentials) => {
-  const { data } = await backendAPI.post('/auth/login', credentials);
-  return data;
-};
-
-export const registerUser = async (userData) => {
-  const { data } = await backendAPI.post('/auth/register', userData);
-  return data;
-};
-
-export const getCurrentUser = async () => {
-  const { data } = await backendAPI.get('/auth/me');
-  return data;
-};
-
-export const updateCurrentUser = async (payload) => {
-  const { data } = await backendAPI.patch('/auth/me', payload);
-  return data;
-};
-
-export const verifyCurrentPassword = async (password) => {
-  const { data } = await backendAPI.post('/auth/verify-password', { password });
-  return data;
-};
-
-// Admin: list users and toggle active state
-export const getUsers = async () => {
-  const { data } = await backendAPI.get('/auth/users');
-  return data;
-};
-
-export const setUserActive = async (id, active, password = undefined) => {
-  const body = { active };
-  if (typeof password === 'string' && password.length) body.password = password;
-  const { data } = await backendAPI.patch(`/auth/users/${id}/active`, body);
-  return data;
-};
-
-// ── User collections (ms_usuarios) ─────────────────────────────────────────
-export const getCollections = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/users/collections`, { headers });
-  return data;
-};
-
-export const addToCollection = async (pokemon_id) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.post(`${msUsersBase}/users/collections`, { pokemon_id }, { headers });
-  return data;
-};
-
-export const removeFromCollection = async (pokemon_id) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.delete(`${msUsersBase}/users/collections/${pokemon_id}`, { headers });
-  return data;
-};
-
-// ── ms_pokemon endpoints (DB-backed Pokédex)
-const msPokemonAPI = axios.create({
-  baseURL: import.meta.env.VITE_MS_POKEMON_URL || 'http://localhost:3002/api',
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
+gatewayAPI.interceptors.response.use((res) => res, (err) => {
+  const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Error desconocido';
+  console.error('[Gateway Error]', msg);
+  return Promise.reject(new Error(msg));
 });
 
-export const getBackendPokemons = async (limit = 200, offset = 0) => {
-  const { data } = await msPokemonAPI.get(`/pokemon?limit=${limit}&offset=${offset}`);
-  return data;
-};
+// ── Auth / Users
+export const loginUser = async (credentials) => { const { data } = await gatewayAPI.post('/api/auth/login', credentials); return data; };
+export const registerUser = async (userData) => { const { data } = await gatewayAPI.post('/api/auth/register', userData); return data; };
+export const getCurrentUser = async () => { const { data } = await gatewayAPI.get('/api/auth/me'); return data; };
+export const updateCurrentUser = async (payload) => { const { data } = await gatewayAPI.patch('/api/auth/me', payload); return data; };
+export const verifyCurrentPassword = async (password) => { const { data } = await gatewayAPI.post('/api/auth/verify-password', { password }); return data; };
+export const getUsers = async () => { const { data } = await gatewayAPI.get('/api/usuarios/users'); return data; };
+export const setUserActive = async (id, active, password = undefined) => { const body = { active }; if (typeof password === 'string' && password.length) body.password = password; const { data } = await gatewayAPI.patch(`/api/usuarios/users/${id}/active`, body); return data; };
 
-export const getBackendPokemon = async (name) => {
-  const { data } = await msPokemonAPI.get(`/pokemon/${encodeURIComponent(name)}`);
-  return data;
-};
+// ── Teams (ms_usuarios)
+export const getTeams = async () => { const { data } = await gatewayAPI.get('/api/teams'); return data; };
+export const getTeamById = async (id) => { const { data } = await gatewayAPI.get(`/api/teams/${id}`); return data; };
+export const createTeam = async (team) => { const { data } = await gatewayAPI.post('/api/teams', team); return data; };
+export const updateTeam = async (id, team) => { const { data } = await gatewayAPI.put(`/api/teams/${id}`, team); return data; };
+export const deleteTeam = async (id) => { const { data } = await gatewayAPI.delete(`/api/teams/${id}`); return data; };
 
-// Data lists from ms_usuarios
-export const getMovesList = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/data/moves`, { headers });
-  return data;
-};
+// ── Collections
+export const getCollections = async () => { const { data } = await gatewayAPI.get('/api/usuarios/collections'); return data; };
+export const addToCollection = async (pokemon_id) => { const { data } = await gatewayAPI.post('/api/usuarios/collections', { pokemon_id }); return data; };
+export const removeFromCollection = async (pokemon_id) => { const { data } = await gatewayAPI.delete(`/api/usuarios/collections/${pokemon_id}`); return data; };
 
-export const getAbilitiesList = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/data/abilities`, { headers });
-  return data;
-};
+// ── ms_pokemon via gateway
+export const getBackendPokemons = async (limit = 200, offset = 0) => { const { data } = await gatewayAPI.get(`/api/pokemon?limit=${limit}&offset=${offset}`); return data; };
+export const getBackendPokemon = async (name) => { const { data } = await gatewayAPI.get(`/api/pokemon/${encodeURIComponent(name)}`); return data; };
 
-export const getItemsList = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/data/items`, { headers });
-  return data;
-};
+// ── Data lists
+export const getMovesList = async () => { const { data } = await gatewayAPI.get('/api/usuarios/data/moves'); return data; };
+export const getAbilitiesList = async () => { const { data } = await gatewayAPI.get('/api/usuarios/data/abilities'); return data; };
+export const getItemsList = async () => { const { data } = await gatewayAPI.get('/api/usuarios/data/items'); return data; };
+export const getSpreadsList = async (pokemonName) => { const url = `/api/usuarios/data/spreads${pokemonName ? `?pokemon=${encodeURIComponent(pokemonName)}` : ''}`; const { data } = await gatewayAPI.get(url); return data; };
+export const createSpread = async ({ nature, ev }) => { const { data } = await gatewayAPI.post('/api/usuarios/data/spreads', { nature, ev }); return data; };
 
-// Team feedback
-export const postTeamFeedback = async (team_id, type) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.post(`${msUsersBase}/teams/${team_id}/feedback`, { type }, { headers });
-  return data;
-};
+// ── Team feedback
+export const postTeamFeedback = async (team_id, type) => { const { data } = await gatewayAPI.post(`/api/teams/${team_id}/feedback`, { type }); return data; };
+export const getTeamFeedback = async (team_id) => { try { const { data } = await gatewayAPI.get(`/api/teams/${team_id}/feedback`); return data; } catch (err) { console.debug('getTeamFeedback error', err.message || err); return null; } };
 
-export const getTeamFeedback = async (team_id) => {
-  try {
-    const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-    const token = localStorage.getItem('pk_token');
-    const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-    const { data } = await axios.get(`${msUsersBase}/teams/${team_id}/feedback`, { headers });
-    return data;
-  } catch (err) {
-    // Fail gracefully — caller will handle missing data
-    console.debug('getTeamFeedback error', err.message || err);
-    return null;
-  }
-};
+// ── Admin metrics
+export const getAdminTeamPerformance = async () => { const { data } = await gatewayAPI.get('/api/usuarios/admin/teams/performance'); return data; };
+export const getTypesByCountry = async () => { const { data } = await gatewayAPI.get('/api/usuarios/admin/usage/types-by-country'); return data; };
+export const getUsersByAge = async (age) => { const { data } = await gatewayAPI.get(`/api/usuarios/admin/users/by-age?age=${encodeURIComponent(age)}`); return data; };
+export const getPerformanceLatency = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/latency'); return data; } catch (err) { console.warn('Performance latency metric unavailable:', err.message); return null; } };
+export const getPerformanceThroughput = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/throughput'); return data; } catch (err) { console.warn('Performance throughput metric unavailable:', err.message); return null; } };
+export const getPerformanceErrors = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/errors'); return data; } catch (err) { console.warn('Performance errors metric unavailable:', err.message); return null; } };
 
-// ── ms_asistencia (AI assistance) ───────────────────────────────────────────
-const msAsistenciaBase = import.meta.env.VITE_MS_ASISTENCIA_URL || 'http://localhost:8005';
+// ── Assistance & Montecarlo & Carga
+export const analyzeTeamAI = async (team) => { const { data } = await gatewayAPI.post('/api/asistencia/analyze/team', { team }); return data; };
+export const recommendTeammateAI = async (team, top_n = 6) => { const { data } = await gatewayAPI.post('/api/asistencia/recommend/teammate', { team, top_n }); return data; };
+export const recommendBuildAI = async (name) => { const { data } = await gatewayAPI.post('/api/asistencia/recommend/build', { name }); return data; };
+export const simulateBattle = async (payload) => { const { data } = await gatewayAPI.post('/api/montecarlo/simulate', payload); return data; };
+export const persistBestConfiguration = async (payload) => { const { data } = await gatewayAPI.post('/api/montecarlo/persist_best', payload); return data; };
+export const loadExternalData = async (url) => { const { data } = await gatewayAPI.post('/api/carga/load', { url }); return data; };
 
-export const analyzeTeamAI = async (team) => {
-  const { data } = await axios.post(`${msAsistenciaBase}/analyze/team`, { team });
-  return data;
-};
-
-export const recommendTeammateAI = async (team, top_n = 6) => {
-  const { data } = await axios.post(`${msAsistenciaBase}/recommend/teammate`, { team, top_n });
-  return data;
-};
-
-export const recommendBuildAI = async (name) => {
-  const { data } = await axios.post(`${msAsistenciaBase}/recommend/build`, { name });
-  return data;
-};
-
-// ── Montecarlo service
-const msMonteBase = import.meta.env.VITE_MS_MONTECARLO_URL || 'http://localhost:8010';
-export const simulateBattle = async (payload) => {
-  const { data } = await axios.post(`${msMonteBase}/simulate`, payload);
-  return data;
-};
-
-export const persistBestConfiguration = async (payload) => {
-  const { data } = await axios.post(`${msMonteBase}/persist_best`, payload);
-  return data;
-};
-
-export const getSpreadsList = async (pokemonName) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const url = `${msUsersBase}/data/spreads${pokemonName ? `?pokemon=${encodeURIComponent(pokemonName)}` : ''}`;
-  const { data } = await axios.get(url, { headers });
-  return data;
-};
-
-export const createSpread = async ({ nature, ev }) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.post(`${msUsersBase}/data/spreads`, { nature, ev }, { headers });
-  return data;
-};
-
-// Admin metrics
-export const getAdminTeamPerformance = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/teams/performance`, { headers });
-  return data;
-};
-
-export const getTypesByCountry = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/usage/types-by-country`, { headers });
-  return data;
-};
-
-export const getUsersByAge = async (age) => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/users/by-age?age=${encodeURIComponent(age)}`, { headers });
-  return data;
-};
-
+// Additional endpoints not previously defined above — keep them going through the gateway
 export const getUsersAgeBuckets = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/users/age-buckets`, { headers });
+  const { data } = await gatewayAPI.get('/api/usuarios/admin/users/age-buckets');
   return data;
 };
 
 export const getAdminUsersRegisteredByMonth = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/users/registered-by-month`, { headers });
-  return data;
-};
-
-export const getPerformanceLatency = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/performance/latency`, { headers });
-  return data;
-};
-
-export const getPerformanceThroughput = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/performance/throughput`, { headers });
-  return data;
-};
-
-export const getPerformanceErrors = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/admin/performance/errors`, { headers });
+  const { data } = await gatewayAPI.get('/api/usuarios/admin/users/registered-by-month');
   return data;
 };
 
 export const getPublicTeams = async () => {
-  const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-  const token = localStorage.getItem('pk_token');
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-  const { data } = await axios.get(`${msUsersBase}/teams/public`, { headers });
+  const { data } = await gatewayAPI.get('/api/teams/public');
   return data;
 };
