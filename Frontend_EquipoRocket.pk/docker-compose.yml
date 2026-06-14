@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   frontend:
     build:
@@ -8,14 +6,9 @@ services:
     container_name: frontend
     ports:
       - "3000:3000"
-    environment:
-      # Frontend only needs the API Gateway URL
-      VITE_API_URL: ${VITE_API_URL:-http://api_gateway:8000}
     networks:
       - equiporocket-net
     restart: unless-stopped
-    depends_on:
-      - api_gateway
 
 networks:
   equiporocket-net:

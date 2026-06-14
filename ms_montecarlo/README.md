@@ -40,21 +40,27 @@ uvicorn app:app --reload --port 8010
 ```
 
 - `team` / `opponent`: nombres de los Pokémon de cada equipo.
-- `iterations`: número de configuraciones candidatas que se generan y evalúan para el equipo propio (búsqueda Monte Carlo).
-- `sims`: número de combates individuales simulados para evaluar cada configuración candidata. La configuración ganadora queda registrada combate por combate en `simulation_iterations` (ver más abajo).
-- `random_seed` (opcional): si se entrega, la corrida es reproducible (misma semilla ⇒ mismos resultados). Si se omite, se genera una semilla aleatoria que se persiste junto con el resultado.
+- `iterations`: número de configuraciones candidatas que se generan y evalúan, **para cada equipo por separado** (búsqueda Monte Carlo independiente para `team` y para `opponent`, cada uno contra el config-default fijo del otro).
+- `sims`: número de combates individuales simulados para evaluar cada configuración candidata. La configuración ganadora del equipo propio (`team`) queda registrada combate por combate en `simulation_iterations` (ver más abajo).
+- `random_seed` (opcional): si se entrega, se usa como base para derivar las semillas de ambas búsquedas. Si se omite, cada búsqueda deriva su semilla **determinísticamente** (hash SHA-256) de `(equipo a optimizar, equipo rival, iterations, sims)`, en ese orden. Esto da dos garantías:
+  - **Reproducibilidad**: la misma combinación de equipos y parámetros siempre produce el mismo `win_rate` y el mismo `best_team`, sin que el frontend tenga que generar/enviar semillas.
+  - **Intercambio invertido**: si en otra request se intercambian `team` ↔ `opponent`, la búsqueda de `team` de una request es exactamente la búsqueda de `opponent` de la otra (misma semilla, mismo resultado), por lo que `team_a_win_probability`/`team_b_win_probability` salen exactamente intercambiados entre ambas requests. La semilla de la búsqueda de `team` se persiste en `battle_simulations.random_seed`.
 
 ### Qué hace internamente
 
 1. Carga el "pool" de Pokémon desde la fila más reciente de `external_raw` (o desde la API externa configurada si la tabla está vacía).
-2. `montecarlo.search_best_team(...)` genera `iterations` configuraciones candidatas para el equipo propio y, para cada una, llama a `montecarlo.evaluate_team(...)`, que simula `sims` combates (`simulator.simulate_battle`) contra el equipo rival y devuelve `(win_rate, iterations)`.
-3. Se conserva la configuración con mayor `win_rate` (`best_team`), junto con el detalle de sus `sims` combates individuales (`best_iterations`).
+2. `montecarlo.search_best_team(...)` se ejecuta **dos veces, de forma independiente**:
+   - Una vez optimizando `team`: genera `iterations` configuraciones candidatas y, para cada una, llama a `montecarlo.evaluate_team(...)`, que simula `sims` combates (`simulator.simulate_battle`) contra el config-default fijo de `opponent` y devuelve `(win_rate, iterations)`.
+   - Otra vez optimizando `opponent` contra el config-default fijo de `team`, de la misma forma.
+3. De la búsqueda de `team` se conserva la configuración con mayor `win_rate` (`best_team`), junto con el detalle de sus `sims` combates individuales (`best_iterations`). El `win_rate` de la búsqueda de `opponent` se usa solo para `team_b_win_probability`/`team_b_score`.
 4. Se inserta una fila en `battle_simulations` con:
-   - `team_a_score` / `team_b_score`: estimación de Pokémon restantes según el win rate.
-   - `team_a_win_probability` / `team_b_win_probability`: win rate en %.
+   - `team_a_score` / `team_b_score`: estimación de Pokémon restantes según el win rate de cada equipo.
+   - `team_a_win_probability` / `team_b_win_probability`: win rate en % de la búsqueda de `team` y de `opponent` respectivamente — son resultados **independientes**, no `team_b = 100 - team_a`.
    - `simulation_count`: número de combates individuales simulados para `best_team` (= `sims`).
-   - `random_seed` y `algorithm_version`: semilla usada y versión del algoritmo, para trazabilidad y reproducibilidad.
+   - `random_seed` y `algorithm_version`: semilla de la búsqueda de `team` y versión del algoritmo, para trazabilidad y reproducibilidad.
 5. Se insertan `sims` filas en `simulation_iterations` (una por cada combate individual de `best_team`), cada una con el ganador (`A` o `B`) de esa iteración.
+
+> **Nota de rendimiento**: al correr una búsqueda por cada equipo, cada `/simulate` ejecuta `2 × iterations × sims` combates en total (el doble que antes de esta corrección).
 6. Si `team_a_id` está presente, por cada Pokémon de `best_team`:
    - Se inserta una recomendación en `optimized_configurations` (habilidad, item y movimientos recomendados).
    - Se inserta en `configuration_comparisons` la variante `original` (la configuración recomendada) más 1-2 variantes alternativas (`alt_item_1`, `alt_spread_1`), generadas y re-evaluadas con una muestra reducida de combates (`min(sims, 100)`), para poder comparar el win rate de la recomendación contra alternativas y justificarla.

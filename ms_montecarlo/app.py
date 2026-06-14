@@ -5,12 +5,12 @@ from typing import List, Optional, Any
 import os
 import json
 import random
+import hashlib
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import execute_values
 
 from api_client import fetch_api, list_pokemon_entries
-<<<<<<< HEAD
 from montecarlo import (
     search_best_team,
     evaluate_team,
@@ -18,10 +18,7 @@ from montecarlo import (
     find_entries_by_names,
     pick_default_config,
 )
-=======
-from montecarlo import search_best_team
 import math
->>>>>>> 53b9dd2017279900269b1753fb124f09c9a75687
 
 app = FastAPI(title="ms_montecarlo")
 
@@ -43,14 +40,9 @@ class SimulateRequest(BaseModel):
     team_b_id: Optional[int] = None
     api_url: Optional[str] = None
     persist_moves: bool = False
-<<<<<<< HEAD
     iterations: int = 1000
     sims: int = 500
     random_seed: Optional[int] = Field(default=None, description="Semilla para reproducir esta corrida Monte Carlo; si no se entrega se genera una aleatoria")
-=======
-    iterations: int = 5000
-    sims: int = 50000
->>>>>>> 53b9dd2017279900269b1753fb124f09c9a75687
 
 
 def get_db_conn():
@@ -64,6 +56,23 @@ def get_db_conn():
         pwd = os.environ.get('PGPASSWORD', 'example')
         dsn = f"host={host} port={port} dbname={db} user={user} password={pwd}"
     return psycopg2.connect(dsn)
+
+
+def _derive_seed(searched, against, iterations, sims, base=None):
+    """Deriva una semilla determinística para la búsqueda Monte Carlo de `searched`
+    contra el config-default fijo de `against`.
+
+    La semilla depende de (equipo a optimizar, equipo rival, iterations, sims) en
+    ese orden. Así, si en otra request se intercambian `team`/`opponent`, la
+    búsqueda "team vs opponent" de una request es exactamente la búsqueda
+    "opponent vs team" de la otra: mismas semillas, mismos resultados, solo que
+    cruzados entre `team_a`/`team_b`.
+    """
+    seed_key = json.dumps(
+        {'base': base, 'searched': searched, 'against': against, 'iterations': iterations, 'sims': sims},
+        sort_keys=True,
+    )
+    return int(hashlib.sha256(seed_key.encode()).hexdigest(), 16) % (2 ** 63)
 
 
 @app.post('/simulate')
@@ -131,11 +140,21 @@ def simulate(req: SimulateRequest):
     if not pool:
         raise HTTPException(status_code=400, detail="Pool empty from API or DB")
 
-    # Semilla para que esta corrida Monte Carlo sea reproducible (trazabilidad)
-    random_seed = req.random_seed if req.random_seed is not None else random.getrandbits(63)
+    # Semillas para que esta corrida Monte Carlo sea reproducible (trazabilidad) y
+    # para que intercambiar `team`/`opponent` produzca resultados invertidos.
+    # Cada lado se optimiza por separado (best-of-`iterations` configuraciones
+    # aleatorias) contra el config-default fijo del otro lado; la semilla de cada
+    # búsqueda depende de (equipo a optimizar, equipo rival, iterations, sims), así
+    # que al intercambiar `team`/`opponent` ambas búsquedas simplemente intercambian
+    # de lugar y producen los mismos dos resultados, ahora "dados vuelta".
+    seed_for_team_search = _derive_seed(req.team, req.opponent, req.iterations, req.sims, base=req.random_seed)
+    seed_for_opponent_search = _derive_seed(req.opponent, req.team, req.iterations, req.sims, base=req.random_seed)
+    random_seed = seed_for_team_search
     algorithm_version = 'v1'
 
-    # run search
+    # Búsqueda Monte Carlo para el equipo propio (`team`): prueba `iterations`
+    # configuraciones aleatorias y se queda con la mejor contra el config-default
+    # fijo del rival (`opponent`).
     best_wr, best_team, best_iterations = search_best_team(
         pool,
         team_size=len(req.team),
@@ -143,10 +162,25 @@ def simulate(req: SimulateRequest):
         sims=req.sims,
         fixed_teamA_names=req.team,
         fixed_teamB_names=req.opponent,
-        random_seed=random_seed,
+        random_seed=seed_for_team_search,
+    )
+
+    # La misma búsqueda, pero optimizando el equipo rival (`opponent`) contra el
+    # config-default fijo del equipo propio. Da a `team_b_win_probability` un
+    # resultado propio (no `100 - win_rate`), para que al intercambiar `team`/
+    # `opponent` se obtengan los mismos dos resultados, invertidos entre sí.
+    opponent_wr, _opponent_best_team, _opponent_best_iterations = search_best_team(
+        pool,
+        team_size=len(req.opponent),
+        iterations=req.iterations,
+        sims=req.sims,
+        fixed_teamA_names=req.opponent,
+        fixed_teamB_names=req.team,
+        random_seed=seed_for_opponent_search,
     )
 
     win_rate = float(best_wr)
+    opponent_win_rate = float(opponent_wr)
 
     # Enrich best_team entries from public PokeAPI when fields are missing
     try:
@@ -181,16 +215,17 @@ def simulate(req: SimulateRequest):
     except Exception:
         pass
     team_size = max(1, len(req.team) if req.team else 1)
-    # Estimate remaining pokemon counts as a simple heuristic from win_rate
+    opponent_team_size = max(1, len(req.opponent) if req.opponent else 1)
+    # Estimate remaining pokemon counts as a simple heuristic from each side's own win_rate
     team_a_score = int(round(win_rate * team_size))
-    team_b_score = int(round((1 - win_rate) * team_size))
+    team_b_score = int(round(opponent_win_rate * opponent_team_size))
         # team ids (may be None)
     team_a_id = getattr(req, 'team_a_id', None) if hasattr(req, 'team_a_id') else None
     team_b_id = getattr(req, 'team_b_id', None) if hasattr(req, 'team_b_id') else None
     # decide winner id if provided
     winner_team_id = None
     if team_a_id and team_b_id:
-        winner_team_id = team_a_id if win_rate >= 0.5 else team_b_id
+        winner_team_id = team_a_id if win_rate >= opponent_win_rate else team_b_id
 
     # persist into existing battle_simulations table
     try:
@@ -198,9 +233,10 @@ def simulate(req: SimulateRequest):
         cur = conn.cursor()
         team_a_id = getattr(req, 'team_a_id', None) if hasattr(req, 'team_a_id') else None
         team_b_id = getattr(req, 'team_b_id', None) if hasattr(req, 'team_b_id') else None
-        # store probabilities as percentages (0-100)
+        # store probabilities as percentages (0-100); cada lado viene de su propia
+        # búsqueda Monte Carlo, no es `100 - team_a_prob`
         team_a_prob = round(win_rate * 100, 2)
-        team_b_prob = round((1 - win_rate) * 100, 2)
+        team_b_prob = round(opponent_win_rate * 100, 2)
         # compact best team summary (names) to store in prediction (varchar(255))
         try:
             best_names = [str(p.get('name') or p.get('pokemon') or p.get('display_name') or '') for p in best_team]

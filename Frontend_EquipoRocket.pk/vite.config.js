@@ -19,8 +19,7 @@ export default defineConfig({
     },
   },
   build: {
-    // Optimize for production
-    minify: 'terser',
+    // Use Vite's default minifier (oxc, bundled with rolldown-vite)
     sourcemap: false,
     // Output directory
     outDir: 'dist',
