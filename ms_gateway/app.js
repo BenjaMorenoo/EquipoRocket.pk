@@ -371,13 +371,18 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start server ──────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`🚀 API Gateway listening on port ${PORT}`);
-  console.log(`📡 Microservices configured:`);
-  console.log(`   Auth: ${MS_AUTH_URL}`);
-  console.log(`   Usuarios: ${MS_USUARIOS_URL}`);
-  console.log(`   Pokemon: ${MS_POKEMON_URL}`);
-  console.log(`   Carga API: ${MS_CARGA_API_URL}`);
-  console.log(`   Monte Carlo: ${MS_MONTECARLO_URL}`);
-  console.log(`   Asistencia: ${MS_ASISTENCIA_URL}`);
-});
+// Skipped under tests so supertest can drive `app` directly without binding a port.
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 API Gateway listening on port ${PORT}`);
+    console.log(`📡 Microservices configured:`);
+    console.log(`   Auth: ${MS_AUTH_URL}`);
+    console.log(`   Usuarios: ${MS_USUARIOS_URL}`);
+    console.log(`   Pokemon: ${MS_POKEMON_URL}`);
+    console.log(`   Carga API: ${MS_CARGA_API_URL}`);
+    console.log(`   Monte Carlo: ${MS_MONTECARLO_URL}`);
+    console.log(`   Asistencia: ${MS_ASISTENCIA_URL}`);
+  });
+}
+
+export default app;

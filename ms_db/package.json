@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "init-db": "node server.js init"
+    "init-db": "node server.js init",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -15,7 +16,8 @@
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "jest": "^29.7.0"
   },
   "type": "module"
 }

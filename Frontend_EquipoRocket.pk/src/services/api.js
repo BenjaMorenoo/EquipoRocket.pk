@@ -23,7 +23,7 @@ export const getPokemonSpecies = async (nameOrId) => {
 // Default to host port 9000 because gateway is mapped to host 9000:8000 in docker-compose
 const GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:9000';
 // Increase default timeout to handle longer-running backend requests (e.g. asistencia, montecarlo)
-const gatewayAPI = axios.create({ baseURL: GATEWAY_URL, timeout: 60000, headers: { 'Content-Type': 'application/json' } });
+export const gatewayAPI = axios.create({ baseURL: GATEWAY_URL, timeout: 60000, headers: { 'Content-Type': 'application/json' } });
 
 gatewayAPI.interceptors.request.use((config) => {
   const token = localStorage.getItem('pk_token');

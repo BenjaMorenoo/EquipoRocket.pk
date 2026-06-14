@@ -1,3 +1,6 @@
 documentos/
 CLAUDE.md
 plan_pruebas.md
+node_modules/
+__pycache__/
+*.pyc
