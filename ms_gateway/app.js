@@ -9,6 +9,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+// Don't reveal the backend framework in responses (DAST: ZAP 10037)
+app.disable('x-powered-by');
+
 // ── Debugging: lightweight request logging to verify Authorization header forwarding
 app.use((req, res, next) => {
   try {
@@ -43,6 +46,34 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// API responses are dynamic/per-user and must not be cached by intermediate
+// proxies (DAST: ZAP 10049 - Storable and Cacheable Content)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+// ── Shared proxy body forwarding ─────────────────────────────────────────
+// http-proxy-middleware copies the incoming request headers (including
+// Content-Length) onto proxyReq before onProxyReq runs. Since express.json()
+// already consumed the original body stream, the parsed body must be
+// re-serialized and written here. Checking `Object.keys(req.body).length`
+// (as the old per-route handlers did) skips this for an empty-but-valid `{}`
+// body, leaving the stale Content-Length on proxyReq with nothing written --
+// the target then hangs until proxyTimeout. body-parser always sets
+// `req.body = {}` (even for GET/HEAD with no payload), so we gate on the
+// method instead and always (re)write `req.body ?? {}` for methods that
+// admit a body.
+const METHODS_WITH_BODY = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function forwardJsonBody(proxyReq, req) {
+  if (!METHODS_WITH_BODY.has(req.method)) return;
+  const bodyData = JSON.stringify(req.body ?? {});
+  proxyReq.setHeader('Content-Type', 'application/json');
+  proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+  proxyReq.write(bodyData);
+}
 
 // ── Health check endpoint ────────────────────────────────────────────────
 app.get('/health', (req, res) => {
@@ -92,12 +123,7 @@ app.use(
         // If the body was already parsed by express.json(), we need to
         // re-serialize and write it to the proxied request so the target
         // service receives the JSON body (otherwise the stream was consumed).
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {
         // never break the proxy because of logging/debugging
       }
@@ -124,12 +150,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/usuarios/users -> ${MS_AUTH_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -154,12 +175,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/usuarios -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -184,12 +200,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/teams -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -214,12 +225,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/users -> ${MS_USUARIOS_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -262,12 +268,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/carga -> ${MS_CARGA_API_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -292,12 +293,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/montecarlo -> ${MS_MONTECARLO_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {
@@ -322,12 +318,7 @@ app.use(
       try {
         const hasAuth = !!req.headers.authorization;
         console.log(`[GW PROXY] /api/asistencia -> ${MS_ASISTENCIA_URL} method=${req.method} auth=${hasAuth}`);
-        if (req.body && Object.keys(req.body).length) {
-          const bodyData = JSON.stringify(req.body);
-          proxyReq.setHeader('Content-Type', 'application/json');
-          proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-          proxyReq.write(bodyData);
-        }
+        forwardJsonBody(proxyReq, req);
       } catch (e) {}
     },
     onError: (err, req, res) => {

@@ -64,6 +64,7 @@ export const createTeam = async (req, res) => {
     const userId = req.user.id;
     const { name, format_id, pokemon = [], created_by } = req.body;
     if (!name) return res.status(400).json({ success:false, error: 'NAME_REQUIRED' });
+    if (pokemon.length < 1 || pokemon.length > 6) return res.status(400).json({ success:false, error: 'INVALID_TEAM_SIZE' });
     // validate user exists
     const { rows: urows } = await query('SELECT id FROM users WHERE id = $1 LIMIT 1', [userId]);
     if (!urows.length) return res.status(400).json({ success:false, error: 'USER_NOT_FOUND' });

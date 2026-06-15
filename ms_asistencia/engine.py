@@ -63,6 +63,7 @@ class PokemonAnalyticsEngine:
         if len(current_team) < 2:
             return {'error': 'Se necesitan al menos 2 Pokémon para analizar la sinergia.'}
         synergy_scores = []
+        pairs = []
         for i, poke1 in enumerate(current_team):
             for poke2 in current_team[i+1:]:
                 try:
@@ -75,8 +76,9 @@ class PokemonAnalyticsEngine:
                 except Exception:
                     score = 0.0
                 synergy_scores.append(score)
+                pairs.append({'pokemon1': poke1, 'pokemon2': poke2, 'synergy_percent': round(float(score) * 100, 2)})
         avg_synergy = float(np.mean(synergy_scores)) if synergy_scores else 0.0
-        return {'synergy_percent': round(avg_synergy * 100, 2)}
+        return {'synergy_percent': round(avg_synergy * 100, 2), 'pairs': pairs}
 
     def recommend_teammate(self, current_team, top_n=3):
         if not current_team:

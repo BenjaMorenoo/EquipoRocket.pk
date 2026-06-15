@@ -89,6 +89,67 @@ def test_process_payload_twice_does_not_duplicate_rows():
 
 
 # ---------------------------------------------------------------------------
+# ST-CARGA-01: insert_spread con ON CONFLICT no duplica spreads/pokemon_spreads
+# ---------------------------------------------------------------------------
+def _payload_with_spread():
+    return {
+        "name": f"{PREFIX}SpreadMon",
+        "stats": {"hp": 1, "atk": 2, "def": 3, "spa": 4, "spd": 5, "spe": 6},
+        "spreads": [{"nature": f"{PREFIX}Nature", "ev": "4/252/0/0/0/252"}],
+    }
+
+
+def test_process_payload_twice_does_not_duplicate_spreads():
+    conn = main.get_conn()
+    payload = _payload_with_spread()
+    pokemon_id = None
+    nature_id = None
+    try:
+        main.process_payload(conn, payload)
+        conn.commit()
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM pokemon WHERE name=%s", (payload["name"],))
+            pokemon_id = cur.fetchone()[0]
+            cur.execute("SELECT id FROM natures WHERE name=%s", (f"{PREFIX}Nature",))
+            nature_id = cur.fetchone()[0]
+            cur.execute(
+                "SELECT COUNT(*) FROM spreads WHERE nature_id=%s AND hp_evs=4 AND attack_evs=252 "
+                "AND defense_evs=0 AND sp_attack_evs=0 AND sp_defense_evs=0 AND speed_evs=252",
+                (nature_id,),
+            )
+            spreads_count_1 = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM pokemon_spreads WHERE pokemon_id=%s", (pokemon_id,))
+            ps_count_1 = cur.fetchone()[0]
+
+        main.process_payload(conn, payload)
+        conn.commit()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM spreads WHERE nature_id=%s AND hp_evs=4 AND attack_evs=252 "
+                "AND defense_evs=0 AND sp_attack_evs=0 AND sp_defense_evs=0 AND speed_evs=252",
+                (nature_id,),
+            )
+            spreads_count_2 = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM pokemon_spreads WHERE pokemon_id=%s", (pokemon_id,))
+            ps_count_2 = cur.fetchone()[0]
+
+        assert spreads_count_1 == 1
+        assert ps_count_1 == 1
+        assert spreads_count_2 == spreads_count_1
+        assert ps_count_2 == ps_count_1
+    finally:
+        if pokemon_id is not None:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM pokemon_spreads WHERE pokemon_id=%s", (pokemon_id,))
+                cur.execute("DELETE FROM pokemon WHERE id=%s", (pokemon_id,))
+                if nature_id is not None:
+                    cur.execute("DELETE FROM spreads WHERE nature_id=%s", (nature_id,))
+                    cur.execute("DELETE FROM natures WHERE id=%s", (nature_id,))
+            conn.commit()
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # UT-CARGA-02: _normalize_payload_for_pool con payloads vacios/incompletos
 # ---------------------------------------------------------------------------
 def test_normalize_empty_dict_returns_valid_empty_structure():

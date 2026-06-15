@@ -89,6 +89,49 @@ describe('UT-GW-01: enrutamiento de proxies', () => {
   });
 });
 
+describe('SEC-09 (corregido): body {} en rutas proxiadas ya no cuelga la conexión', () => {
+  test('POST /api/auth/register con body {} se reenvía con Content-Length=2 y body "{}"', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(authMock.calls).toHaveLength(1);
+    const call = authMock.calls[0];
+    expect(call.method).toBe('POST');
+    expect(call.headers['content-length']).toBe('2');
+    expect(call.body).toBe('{}');
+  });
+
+  test('GET /api/usuarios/teams no agrega body ni Content-Length', async () => {
+    const res = await request(app)
+      .get('/api/usuarios/teams')
+      .set('Authorization', 'Bearer xyz789');
+
+    expect(res.status).toBe(200);
+    expect(usuariosMock.calls).toHaveLength(1);
+    const call = usuariosMock.calls[0];
+    expect(call.body).toBe('');
+    expect(call.headers['content-length']).toBeUndefined();
+  });
+});
+
+describe('DAST (corregido): cabeceras de seguridad del gateway', () => {
+  test('GET /health no incluye X-Powered-By y deshabilita cache', async () => {
+    const res = await request(app).get('/health');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
+  test('GET /api/pokemon incluye Cache-Control: no-store', async () => {
+    const res = await request(app).get('/api/pokemon');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+});
+
 describe('UT-GW-02: catch-all 404', () => {
   test('GET /api/no-existe -> 404 con availableEndpoints', async () => {
     const res = await request(app).get('/api/no-existe');

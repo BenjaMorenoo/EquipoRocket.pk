@@ -249,7 +249,8 @@ CREATE TABLE spreads (
     sp_attack_evs  INT,
     sp_defense_evs INT,
     speed_evs      INT,
-    CONSTRAINT fk_spreads_nature FOREIGN KEY (nature_id) REFERENCES natures(id)
+    CONSTRAINT fk_spreads_nature FOREIGN KEY (nature_id) REFERENCES natures(id),
+    CONSTRAINT uq_spreads_combo UNIQUE (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs)
 );
 
 CREATE TABLE pokemon_spreads (

@@ -122,7 +122,14 @@ def insert_spread(conn, nature_id, ev_string):
         parts.append(0)
     hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs = parts[:6]
     with conn.cursor() as cur:
-        cur.execute("INSERT INTO spreads (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id;", (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs))
+        cur.execute(
+            "INSERT INTO spreads (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs) "
+            "DO UPDATE SET nature_id = EXCLUDED.nature_id "
+            "RETURNING id;",
+            (nature_id, hp_evs, attack_evs, defense_evs, sp_attack_evs, sp_defense_evs, speed_evs),
+        )
         sid = cur.fetchone()[0]
     conn.commit()
     return sid

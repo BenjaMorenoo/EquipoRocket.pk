@@ -45,7 +45,14 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
   const handleSelect = useCallback((pokemon) => {
     if (targetSlot === null) return;
     // preserve custom fields if replacing
-    setTeam(prev => { const n = [...prev]; n[targetSlot] = { ...pokemon, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] }; return n; });
+    setTeam(prev => {
+      const n = [...prev];
+      // avoid duplicates: if this pokemon already occupies another slot, free that slot
+      const dupIdx = n.findIndex((p, idx) => idx !== targetSlot && p?.name === pokemon.name);
+      if (dupIdx !== -1) n[dupIdx] = null;
+      n[targetSlot] = { ...pokemon, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] };
+      return n;
+    });
     setSearchOpen(false); setTargetSlot(null); setSelectedPk(pokemon);
     setCreatedBy('manual');
   }, [targetSlot]);
