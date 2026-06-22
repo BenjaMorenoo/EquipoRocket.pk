@@ -6,13 +6,15 @@ Permite a los usuarios armar equipos, consultar la Pokédex, simular combates co
 
 ## Arquitectura
 
-El proyecto está organizado como un conjunto de **microservicios independientes**, cada uno con su propio `Dockerfile`, `docker-compose.yml` y dependencias. No existe actualmente un API Gateway central en uso: el **frontend actúa como orquestador**, llamando a cada microservicio directamente a través de su URL base (`VITE_MS_*_URL`). El servicio `ms_gateway` existe en el repositorio como proxy reverso opcional, pero no es parte del flujo implementado por defecto.
+El proyecto está organizado como un conjunto de **microservicios independientes**, cada uno con su propio `Dockerfile`, `docker-compose.yml` y dependencias. El **frontend pasa por el API Gateway (`ms_gateway`)** como punto de entrada único para prácticamente todas las llamadas (`src/services/api.js` → `gatewayAPI`, que apunta a `VITE_API_URL`); el gateway reenvía cada request al microservicio correspondiente (`ms_gateway/app.js`). La única excepción documentada es la asignación de *spread* en el Team Builder, que llama directamente a `ms_usuarios` vía `VITE_MS_USUARIOS_URL` (`TeamBuilder.jsx`).
 
 ```mermaid
 flowchart TB
     subgraph Cliente
-        FE["Frontend SPA<br/>React + Vite"]
+        FE["Frontend SPA<br/>React + Vite<br/>src/services/api.js"]
     end
+
+    GW["ms_gateway (Node/Express)<br/>proxy reverso central<br/>puerto host 9000 → 8000"]
 
     subgraph Microservicios
         AUTH["ms_auth (Node/Express)<br/>login, registro, JWT"]
@@ -26,12 +28,14 @@ flowchart TB
     DB[("PostgreSQL equiporocketDb<br/>(ms_db)")]
     EXT[("API externa<br/>Pikalytics")]
 
-    FE -->|"HTTP REST + JWT"| AUTH
-    FE -->|"HTTP REST + JWT"| USU
-    FE -->|"HTTP REST"| POKE
-    FE -->|"HTTP REST"| MC
-    FE -->|"HTTP REST"| ASIS
-    FE -->|"HTTP REST"| CARGA
+    FE -->|"HTTP REST + JWT<br/>(/api/auth, /api/teams, /api/usuarios,<br/>/api/pokemon, /api/montecarlo, /api/asistencia, /api/carga)"| GW
+    FE -.->|"excepción: PATCH spread<br/>VITE_MS_USUARIOS_URL"| USU
+    GW --> AUTH
+    GW --> USU
+    GW --> POKE
+    GW --> MC
+    GW --> ASIS
+    GW --> CARGA
 
     AUTH --> DB
     USU --> DB
@@ -62,17 +66,19 @@ Documentación de arquitectura más detallada (patrones de diseño, capas, model
 | [`ms_carga_api`](ms_carga_api) | FastAPI (Python) | 8000 | Ingiere datos externos (Pikalytics), guarda crudo en `external_raw` y normaliza a tablas (`pokemon`, `types`, `moves`, etc.) |
 | [`ms_montecarlo`](ms_montecarlo) | FastAPI (Python) | 8010 | Simulación Monte Carlo de combates para optimizar configuraciones de equipo |
 | [`ms_asistencia`](ms_asistencia) | FastAPI + pandas (Python) | 8005 | Recomendaciones de compañeros/builds vía matriz de sinergia por pares |
-| [`ms_gateway`](ms_gateway) | Node/Express | 8000 | Proxy reverso opcional hacia todos los microservicios (no usado por el frontend actualmente) |
+| [`ms_gateway`](ms_gateway) | Node/Express | 9000 (host) → 8000 (contenedor) | **API Gateway**: punto de entrada único usado por el frontend (`VITE_API_URL`), enruta cada request hacia el microservicio correspondiente |
 
 ## Flujos principales
 
-1. **Autenticación**: el frontend llama a `ms_auth` (`POST /api/auth/register`, `POST /api/auth/login`), que emite un JWT firmado con `JWT_SECRET`. Ese mismo secreto es validado por el middleware `requireAuth` de `ms_usuarios`.
-2. **Gestión de equipos**: el frontend llama directamente a `ms_usuarios` (`/api/teams`, CRUD de equipos) y a `ms_pokemon` (Pokédex), usando el JWT emitido por `ms_auth`.
-3. **Ingesta de datos externos**: `ms_carga_api` consulta la API externa (Pikalytics, vía `API_URL`), guarda el payload crudo en `external_raw.payload` (JSONB) y normaliza entradas hacia `pokemon`, `types`, `abilities`, `items`, `moves`, `spreads`, etc.
-4. **Simulación Monte Carlo**: el frontend llama directamente a `ms_montecarlo` (`POST /simulate`). El servicio carga el "pool" de Pokémon desde la fila más reciente de `external_raw`, ejecuta la búsqueda Monte Carlo y persiste resultados en `battle_simulations`, `simulation_iterations`, `optimized_configurations` y `configuration_comparisons`.
-5. **Asistencia / sinergia**: el frontend llama directamente a `ms_asistencia` (`/analyze/team`, `/recommend/teammate`, `/recommend/build`, `/store/synergy`). Este servicio lee `external_raw` y construye en memoria una matriz de sinergia, persistiendo sinergias por pares en `synergy_data`.
+Todas las rutas listadas abajo pasan por el **API Gateway** (`ms_gateway`, `/api/...`), que reenvía cada request al microservicio correspondiente (ver tabla de rutas en [`ms_gateway/README.md`](ms_gateway/README.md)).
 
-> `ms_montecarlo` y `ms_asistencia` son independientes entre sí (no se llaman uno a otro); cada uno lee `external_raw` directamente desde `ms_db`. Es el **frontend** quien orquesta las llamadas a cada microservicio según la pantalla (Team Builder, Simulación, Asistente IA, etc.).
+1. **Autenticación**: el frontend llama a `POST /api/auth/register` y `POST /api/auth/login` (gateway → `ms_auth`), que emite un JWT firmado con `JWT_SECRET`. Ese mismo secreto es validado por el middleware `requireAuth` de `ms_usuarios`.
+2. **Gestión de equipos**: el frontend usa `/api/teams` y `/api/usuarios/*` (gateway → `ms_usuarios`) y `/api/pokemon` (gateway → `ms_pokemon`), usando el JWT emitido por `ms_auth`. Excepción puntual: la asignación de *spread* de un Pokémon ya guardado en un equipo (`TeamBuilder.jsx`) llama directamente a `ms_usuarios` vía `VITE_MS_USUARIOS_URL`, sin pasar por el gateway.
+3. **Ingesta de datos externos**: `ms_carga_api` (`/api/carga/load` vía gateway) consulta la API externa (Pikalytics, vía `API_URL`), guarda el payload crudo en `external_raw.payload` (JSONB) y normaliza entradas hacia `pokemon`, `types`, `abilities`, `items`, `moves`, `spreads`, etc.
+4. **Simulación Monte Carlo**: el frontend llama a `POST /api/montecarlo/simulate` (gateway → `ms_montecarlo`). El servicio carga el "pool" de Pokémon desde la fila más reciente de `external_raw`, ejecuta la búsqueda Monte Carlo y persiste resultados en `battle_simulations`, `simulation_iterations`, `optimized_configurations` y `configuration_comparisons`.
+5. **Asistencia / sinergia**: el frontend llama a `/api/asistencia/analyze/team`, `/recommend/teammate`, `/recommend/build` (gateway → `ms_asistencia`). Este servicio lee `external_raw` y construye en memoria una matriz de sinergia, persistiendo sinergias por pares en `synergy_data` (`/store/synergy`).
+
+> `ms_montecarlo` y `ms_asistencia` son independientes entre sí (no se llaman uno a otro); cada uno lee `external_raw` directamente desde `ms_db`. Es el **frontend**, a través del **gateway**, quien orquesta las llamadas a cada microservicio según la pantalla (Team Builder, Simulación, Asistente IA, etc.).
 
 ## Modelo de datos
 
@@ -86,40 +92,91 @@ El esquema relacional físico vive en [`ms_db/schema.sql`](ms_db/schema.sql) y s
 
 ## Cómo levantar el proyecto localmente (Docker)
 
+> No existe un único `docker-compose.yml` en la raíz: cada carpeta tiene su propio `Dockerfile` + `docker-compose.yml`, y todos comparten la red externa `equiporocket-net`. Esta es la secuencia completa y verificada para dejar el sistema operativo de punta a punta (BD → microservicios → **gateway** → frontend). El orden importa: `ms_gateway` y el frontend necesitan que el resto de servicios ya estén arriba.
+
 Requiere Docker Desktop con Docker Compose V2.
 
-1. **Crear la red Docker compartida** (una sola vez):
+### 1. Crear la red Docker compartida (una sola vez)
 
-   ```bash
-   # Linux/macOS
-   ./scripts/create_network.sh
-   # Windows PowerShell
-   .\scripts\create_network.ps1
-   ```
+```bash
+# Linux/macOS
+./scripts/create_network.sh
+# Windows PowerShell
+.\scripts\create_network.ps1
+```
 
-2. **Levantar cada servicio** desde su propia carpeta (orden recomendado: `ms_db` primero para inicializar la base de datos, luego el resto):
+### 2. Base de datos — `ms_db`
 
-   ```bash
-   cd ms_db && cp .env.example .env  # editar credenciales
-   docker compose up -d --build
-   curl -X POST http://localhost:4002/init   # crea la BD y aplica el esquema
+```bash
+cd ms_db
+cp .env.example .env        # editar PGPASSWORD si no usas el valor por defecto
+docker compose up -d --build
+curl -X POST http://localhost:4002/init   # crea equiporocketDb y aplica schema.sql
+```
 
-   cd ../ms_auth && cp .env.example .env
-   docker compose up -d --build
+### 3. Microservicios de negocio
 
-   cd ../ms_usuarios && docker compose up -d --build
-   cd ../ms_pokemon && cp .env.template .env && docker compose up -d --build
-   cd ../ms_carga_api && cp .env.example .env && docker compose up -d --build
-   cd ../ms_montecarlo && docker compose up -d --build
-   cd ../ms_asistencia && docker compose up -d --build
+Cada uno ya trae un `.env` con valores por defecto compatibles con `ms_db`; solo edítalos si cambiaste credenciales en el paso anterior.
 
-   cd ../Frontend_EquipoRocket.pk && cp .env.example .env
-   docker compose up -d --build
-   ```
+```bash
+cd ../ms_auth        && docker compose up -d --build
+cd ../ms_usuarios     && docker compose up -d --build
+cd ../ms_pokemon      && docker compose up -d --build
+cd ../ms_carga_api    && docker compose up -d --build
+cd ../ms_montecarlo   && docker compose up -d --build
+cd ../ms_asistencia   && docker compose up -d --build
+```
 
-3. **Detener un servicio**: desde su carpeta, `docker compose down`.
+(Opcional pero recomendado) Cargar el catálogo Pokémon desde la API externa antes de usar el Team Builder, la simulación Monte Carlo o el asistente de sinergia:
 
-Más detalle en [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) y [`DOCKER_DEPLOYMENT_GUIDE.md`](DOCKER_DEPLOYMENT_GUIDE.md). Cada microservicio también documenta cómo correrlo de forma local sin Docker (venv + `uvicorn`, o `npm install` + `node`) en su propio `README.md`.
+```bash
+curl -X POST http://localhost:8000/load
+```
+
+### 4. API Gateway — `ms_gateway`
+
+El frontend habla con todos los microservicios **a través del gateway**; sin este paso el frontend no podrá autenticar ni cargar datos.
+
+```bash
+cd ../ms_gateway
+cp .env.example .env
+docker compose up -d --build
+curl http://localhost:9000/health   # debe responder { "status": "healthy", ... }
+```
+
+### 5. Frontend
+
+`VITE_API_URL` se incrusta en el build de Vite, así que debe quedar configurado **antes** de `docker compose up --build`.
+
+```bash
+cd ../Frontend_EquipoRocket.pk
+cp .env.example .env
+# .env -> VITE_API_URL=http://localhost:9000   (puerto host del gateway, paso 4)
+docker compose up -d --build
+```
+
+Abrir **http://localhost:3000** en el navegador.
+
+### Verificación rápida de extremo a extremo
+
+```bash
+curl http://localhost:9000/gateway-info          # confirma que el gateway ve todos los microservicios
+curl http://localhost:9000/api/pokemon?limit=5    # gateway -> ms_pokemon -> Postgres
+```
+
+### Detener / limpiar
+
+Desde la carpeta de cada servicio: `docker compose down` (agregar `-v` solo si además quieres borrar los volúmenes/datos de Postgres en `ms_db/pgdata`).
+
+### Ejecución local sin Docker (desarrollo)
+
+Cada microservicio documenta en su propio `README.md` cómo levantarlo sin contenedores (venv + `uvicorn` para los servicios Python, `npm install` + `node`/`npm start` para los Node):
+
+- [`ms_db`](ms_db/README.md) · [`ms_auth`](ms_auth/README.md) · [`ms_usuarios`](ms_usuarios/README.md) · [`ms_pokemon`](ms_pokemon/README.md) · [`ms_gateway`](ms_gateway/README.md)
+- [`ms_carga_api`](ms_carga_api/README.md) · [`ms_montecarlo`](ms_montecarlo/README.md) · [`ms_asistencia`](ms_asistencia/README.md)
+- [`Frontend_EquipoRocket.pk`](Frontend_EquipoRocket.pk/README.md) (`npm run dev`, sirve en `http://localhost:5173`)
+
+Más detalle (incluyendo troubleshooting de Docker) en [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) y [`DOCKER_DEPLOYMENT_GUIDE.md`](DOCKER_DEPLOYMENT_GUIDE.md). Esta última asume un `docker-compose.yml` único en la raíz que **no existe en este repositorio**; usa esa guía solo como referencia de rutas/puertos del gateway y troubleshooting — la secuencia de arranque real es la de esta sección.
 
 ## Frontend
 
@@ -128,7 +185,7 @@ SPA en React 19 + Vite, con Tailwind CSS, React Router y Recharts para gráficos
 - `pages/`: `AuthPage`, `Login`, `Register`, `Home`, `TeamBuilder`, `MyTeams`, `MisPokemon`, `Simulations`, `UserProfile`, `AdminPanel`.
 - `components/`: piezas reutilizables del Team Builder (`PokemonSlot`, `SearchModal`, `SpreadModal`, `AssistedBuilderModal`, `TypeCoverageChart`, etc.) y widgets de analítica admin (`AdminPerformance`, `AdminSimulationsAnalytics`, `AdminUsageByCountry`, `AdminUsersByMonth`).
 - `context/AuthContext.jsx`: estado de sesión/JWT compartido en toda la app.
-- `services/api.js`: cliente Axios centralizado que apunta a las URLs base de cada microservicio (`VITE_MS_*_URL`).
+- `services/api.js`: cliente Axios centralizado (`gatewayAPI`) que apunta al API Gateway vía `VITE_API_URL` e inyecta el JWT en cada request.
 
 Comandos (`Frontend_EquipoRocket.pk/package.json`): `npm run dev`, `npm run build`, `npm run lint`, `npm run test` (Vitest + Testing Library).
 
