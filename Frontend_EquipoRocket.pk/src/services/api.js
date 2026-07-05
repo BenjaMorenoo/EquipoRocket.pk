@@ -9,8 +9,43 @@ export const getPokemonList = async (limit = 400, offset = 0) => {
   return data.results;
 };
 
+// Pikalytics uses shortened/different names; PokeAPI requires the full official slug
+const POKEAPI_NAME_MAP = {
+  'calyrex-shadow':       'calyrex-shadow-rider',
+  'calyrex-ice':          'calyrex-ice-rider',
+  'urshifu':              'urshifu-single-strike',
+  'urshifu-rapid':        'urshifu-rapid-strike',
+  'ogerpon-teal':         'ogerpon',
+  'ogerpon-hearthflame':  'ogerpon-hearthflame-mask',
+  'ogerpon-wellspring':   'ogerpon-wellspring-mask',
+  'ogerpon-cornerstone':  'ogerpon-cornerstone-mask',
+  'tauros-fire':          'tauros-paldea-blaze-breed',
+  'tauros-water':         'tauros-paldea-aqua-breed',
+  'tauros-combat':        'tauros-paldea-combat-breed',
+  'tauros-paldea-blaze':  'tauros-paldea-blaze-breed',
+  'tauros-paldea-aqua':   'tauros-paldea-aqua-breed',
+  'tauros-paldea-combat': 'tauros-paldea-combat-breed',
+  'basculegion':          'basculegion-male',
+  'basculegion-f':        'basculegion-female',
+  'indeedee-f':           'indeedee-female',
+  'meowstic':             'meowstic-male',
+  'meowstic-f':           'meowstic-female',
+  'meowstic-f-mega':      'meowstic-female',
+  'meowstic-m-mega':      'meowstic-male',
+  'aegislash':            'aegislash-shield',
+  'mimikyu':              'mimikyu-disguised',
+  'maushold':             'maushold-family-of-four',
+  'morpeko':              'morpeko-full-belly',
+  'palafin':              'palafin-zero',
+  'lycanroc':             'lycanroc-midday',
+  'mr. rime':             'mr-rime',
+  'mr.rime':              'mr-rime',
+};
+
 export const getPokemon = async (nameOrId) => {
-  const { data } = await pokeAPI.get(`/pokemon/${String(nameOrId).toLowerCase()}`);
+  const raw = String(nameOrId).toLowerCase();
+  const resolved = typeof nameOrId === 'string' ? (POKEAPI_NAME_MAP[raw] ?? raw) : nameOrId;
+  const { data } = await pokeAPI.get(`/pokemon/${resolved}`);
   return data;
 };
 
@@ -77,9 +112,9 @@ export const getTeamFeedback = async (team_id) => { try { const { data } = await
 export const getAdminTeamPerformance = async () => { const { data } = await gatewayAPI.get('/api/usuarios/admin/teams/performance'); return data; };
 export const getTypesByCountry = async () => { const { data } = await gatewayAPI.get('/api/usuarios/admin/usage/types-by-country'); return data; };
 export const getUsersByAge = async (age) => { const { data } = await gatewayAPI.get(`/api/usuarios/admin/users/by-age?age=${encodeURIComponent(age)}`); return data; };
-export const getPerformanceLatency = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/latency'); return data; } catch (err) { console.warn('Performance latency metric unavailable:', err.message); return null; } };
-export const getPerformanceThroughput = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/throughput'); return data; } catch (err) { console.warn('Performance throughput metric unavailable:', err.message); return null; } };
-export const getPerformanceErrors = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/metrics/errors'); return data; } catch (err) { console.warn('Performance errors metric unavailable:', err.message); return null; } };
+export const getPerformanceLatency = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/performance/latency'); return data; } catch (err) { console.warn('Performance latency metric unavailable:', err.message); return null; } };
+export const getPerformanceThroughput = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/performance/throughput'); return data; } catch (err) { console.warn('Performance throughput metric unavailable:', err.message); return null; } };
+export const getPerformanceErrors = async () => { try { const { data } = await gatewayAPI.get('/api/usuarios/admin/performance/errors'); return data; } catch (err) { console.warn('Performance errors metric unavailable:', err.message); return null; } };
 
 // ── Assistance & Montecarlo & Carga
 export const analyzeTeamAI = async (team) => { const { data } = await gatewayAPI.post('/api/asistencia/analyze/team', { team }); return data; };
@@ -88,10 +123,29 @@ export const recommendBuildAI = async (name) => { const { data } = await gateway
 export const simulateBattle = async (payload) => { const { data } = await gatewayAPI.post('/api/montecarlo/simulate', payload); return data; };
 export const persistBestConfiguration = async (payload) => { const { data } = await gatewayAPI.post('/api/montecarlo/persist_best', payload); return data; };
 export const loadExternalData = async (url) => { const { data } = await gatewayAPI.post('/api/carga/load', { url }); return data; };
+export const getDataStatus = async () => { try { const { data } = await gatewayAPI.get('/api/carga/status'); return data; } catch { return { loaded: false }; } };
 
 // Additional endpoints not previously defined above — keep them going through the gateway
 export const getUsersAgeBuckets = async () => {
   const { data } = await gatewayAPI.get('/api/usuarios/admin/users/age-buckets');
+  return data;
+};
+
+export const getMostUsedPokemon = async (limit = 20, from = '', to = '') => {
+  const p = new URLSearchParams({ limit });
+  if (from) p.set('from', from);
+  if (to)   p.set('to', to);
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/pokemon/most-used?${p}`);
+  return data;
+};
+
+export const getUsersByRegion = async () => {
+  const { data } = await gatewayAPI.get('/api/usuarios/admin/users/by-region');
+  return data;
+};
+
+export const getUsersRetention = async () => {
+  const { data } = await gatewayAPI.get('/api/usuarios/admin/users/retention');
   return data;
 };
 
@@ -102,5 +156,41 @@ export const getAdminUsersRegisteredByMonth = async () => {
 
 export const getPublicTeams = async () => {
   const { data } = await gatewayAPI.get('/api/teams/public');
+  return data;
+};
+
+const dateParams = (from, to) => { const p = new URLSearchParams(); if (from) p.set('from', from); if (to) p.set('to', to); const s = p.toString(); return s ? `?${s}` : ''; };
+
+export const getUserEngagementByRegion = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/users/engagement-by-region${dateParams(from, to)}`);
+  return data;
+};
+export const getAIUsageByRegion = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/users/ai-usage-by-region${dateParams(from, to)}`);
+  return data;
+};
+export const getAgeEngagement = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/users/age-engagement${dateParams(from, to)}`);
+  return data;
+};
+export const getTypeWinRates = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/pokemon/type-win-rates${dateParams(from, to)}`);
+  return data;
+};
+export const getPokemonUsageVsWins = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/pokemon/usage-vs-wins${dateParams(from, to)}`);
+  return data;
+};
+export const getTeamsStatsByRegion = async (from = '', to = '') => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/teams/stats-by-region${dateParams(from, to)}`);
+  return data;
+};
+
+export const getAdminTeams = async () => {
+  const { data } = await gatewayAPI.get('/api/usuarios/admin/teams');
+  return data;
+};
+export const getAdminTeamById = async (id) => {
+  const { data } = await gatewayAPI.get(`/api/usuarios/admin/teams/${id}`);
   return data;
 };

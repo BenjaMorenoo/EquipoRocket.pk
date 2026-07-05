@@ -1,200 +1,274 @@
 import { useEffect, useState } from 'react';
-import { getTypesByCountry, getUsersByAge, getUsersAgeBuckets } from '../services/api';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
+import { getTypesByCountry, getUsersAgeBuckets } from '../services/api';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+  CartesianGrid, PieChart, Pie, Cell,
+} from 'recharts';
 
-const COLORS = ['#2563eb', '#16a34a', '#ef4444', '#f59e0b', '#7c3aed', '#06b6d4', '#f97316', '#10b981'];
+const TYPE_COLORS = [
+  '#6890F0', '#F08030', '#78C850', '#F8D030', '#A040A0',
+  '#7038F8', '#98D8D8', '#C03028', '#A890F0', '#F85888',
+  '#A8B820', '#B8A038', '#705898', '#E0C068', '#B8B8D0', '#EE99AC',
+];
 
-export default function AdminUsageByCountry() {
-  const [typesData, setTypesData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [age, setAge] = useState(25);
-  const [ageResult, setAgeResult] = useState([]);
-  const [ageBuckets, setAgeBuckets] = useState([]);
-  const [error, setError] = useState('');
+const TICK = { fontSize: 11, fill: 'var(--color-pk-subtle)' };
+const GRID = { strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.05)' };
+
+const CardTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: 'var(--color-pk-card)', border: '1px solid var(--color-pk-border)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+      <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--color-pk-text)' }}>{label}</div>
+      {payload.map(p => (
+        <div key={p.dataKey} style={{ color: p.fill }}>{p.name ?? p.dataKey}: <strong>{p.value}</strong></div>
+      ))}
+    </div>
+  );
+};
+
+function SectionTitle({ children }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13,
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      color: 'var(--color-pk-subtle)', marginBottom: 14,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function NoFilterNotice() {
+  return (
+    <p style={{ fontSize: 11, color: 'var(--color-pk-muted)', marginTop: 10, fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ fontSize: 13 }}>ⓘ</span>
+      Filtro de período no aplica a este análisis — muestra el estado actual de todos los equipos.
+    </p>
+  );
+}
+
+export default function AdminUsageByCountry({ from = '', to = '' }) {
+  const [typesData,   setTypesData]   = useState([]);
+  const [ageBuckets,  setAgeBuckets]  = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState('');
+  const [selCountry,  setSelCountry]  = useState(null);
+  const [selBucket,   setSelBucket]   = useState(null);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoading(true);
       try {
-        const [res, buckets] = await Promise.all([getTypesByCountry(), getUsersAgeBuckets()]);
+        const [typesRes, bucketsRes] = await Promise.all([getTypesByCountry(), getUsersAgeBuckets()]);
         if (!mounted) return;
-        setTypesData(res?.data || []);
-        setAgeBuckets(buckets?.data || []);
+        setTypesData(typesRes?.data || []);
+        setAgeBuckets(bucketsRes?.data || []);
       } catch (e) {
-        console.error('getTypesByCountry', e.message || e);
-        setError(e.message || 'Error cargando tipos');
-      } finally { if (mounted) setLoading(false); }
+        if (mounted) setError(e.message || 'Error cargando datos');
+      } finally {
+        if (mounted) setLoading(false);
+      }
     })();
     return () => { mounted = false; };
   }, []);
 
-  const handleFetchAge = async () => {
-    setError('');
-    try {
-      const res = await getUsersByAge(age);
-      setAgeResult(res?.data || []);
-    } catch (e) {
-      console.error('getUsersByAge', e.message || e);
-      setError(e.message || 'Error consultando usuarios por edad');
-    }
-  };
-
-  // transform typesData into grouped by country
+  /* ── Types by country ── */
   const byCountry = {};
   for (const r of typesData) {
-    const cname = r.country || 'Sin país';
-    if (!byCountry[cname]) byCountry[cname] = [];
-    byCountry[cname].push({ type: r.type, uses: Number(r.uses || 0) });
+    const c = r.country || 'Sin país';
+    if (!byCountry[c]) byCountry[c] = [];
+    byCountry[c].push({ type: r.type, uses: Number(r.uses || 0) });
   }
+  const countriesList = Object.keys(byCountry).sort((a, b) => a.localeCompare(b));
 
-  // prepare buckets summary (sum users across countries)
-  const bucketsSummary = {};
-  for (const b of ageBuckets) {
-    const key = b.bucket || '—';
-    bucketsSummary[key] = (bucketsSummary[key] || 0) + Number(b.users || 0);
-  }
-  const bucketsChartData = Object.entries(bucketsSummary).map(([bucket, users]) => ({ bucket, users }));
-
-  const [selectedBucket, setSelectedBucket] = useState(null);
-  const countriesForSelected = ageBuckets.filter(b => b.bucket === selectedBucket).sort((a,b)=>b.users-a.users);
-
-  // COUNTRY selector + single pie + country comparison for top type
-  const countriesList = Object.keys(byCountry).sort((a,b)=>a.localeCompare(b));
-  const [selectedCountry, setSelectedCountry] = useState(null);
-
-  // set default selected country when data loads
   useEffect(() => {
-    if (!selectedCountry && countriesList.length) setSelectedCountry(countriesList[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!selCountry && countriesList.length) setSelCountry(countriesList[0]);
   }, [typesData]);
 
-  const selectedTypes = selectedCountry ? (byCountry[selectedCountry] || []) : [];
-  selectedTypes.sort((a,b)=>b.uses - a.uses);
-  const pieData = selectedTypes.map(t => ({ name: t.type, value: t.uses }));
-  const topType = selectedTypes[0]?.type || null;
+  const selTypes = (byCountry[selCountry] || []).slice().sort((a, b) => b.uses - a.uses);
+  const pieData  = selTypes.map(t => ({ name: t.type, value: t.uses }));
+  const topType  = selTypes[0]?.type || null;
 
-  const countryComparisonData = Object.entries(byCountry).map(([country, types]) => {
-    const found = types.find(tt => tt.type === topType);
-    return { country, uses: Number(found?.uses || 0) };
-  }).sort((a,b)=>b.uses - a.uses).slice(0, 20);
+  const countryComparison = Object.entries(byCountry)
+    .map(([country, types]) => ({ country, uses: types.find(t => t.type === topType)?.uses || 0 }))
+    .sort((a, b) => b.uses - a.uses)
+    .slice(0, 15);
+
+  /* ── Age buckets ── */
+  const bucketTotals = {};
+  for (const b of ageBuckets) {
+    bucketTotals[b.bucket] = (bucketTotals[b.bucket] || 0) + Number(b.users || 0);
+  }
+  const bucketsChartData = Object.entries(bucketTotals)
+    .map(([bucket, users]) => ({ bucket, users }))
+    .sort((a, b) => a.bucket.localeCompare(b.bucket));
+
+  const countriesInBucket = ageBuckets
+    .filter(b => b.bucket === selBucket)
+    .sort((a, b) => b.users - a.users);
+
+  if (loading) return (
+    <div className="pk-card" style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--color-pk-muted)', fontSize: 13 }}>
+      Cargando datos...
+    </div>
+  );
+
+  if (error) return (
+    <div className="pk-card" style={{ padding: 20, color: '#fca5a5', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 14 }}>
+      {error}
+    </div>
+  );
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <div className="pk-card" style={{ padding: 12 }}>
-        <h3 style={{ margin: 0, marginBottom: 8 }}>Tipos más usados por país</h3>
-        {loading && <div>Cargando...</div>}
-        {error && <div style={{ color: '#ef4444' }}>{error}</div>}
-        {!loading && !error && (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {Object.keys(byCountry).length === 0 ? (
-              <div>No hay datos.</div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontWeight: 700, fontSize: 13 }}>Seleccionar país:</label>
-                  <select value={selectedCountry || ''} onChange={e => setSelectedCountry(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--color-pk-border)' }}>
-                    {countriesList.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+    <div style={{ display: 'grid', gap: 16 }}>
 
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                  <div style={{ minWidth: 260 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 6 }}>{selectedCountry}</div>
-                    <div style={{ width: 220, height: 160 }}>
-                      {pieData.length === 0 ? (
-                        <div style={{ color: 'var(--color-pk-muted)', fontSize: 13 }}>No hay datos de tipos para este país.</div>
-                      ) : (
-                        <PieChart width={220} height={160}>
-                          <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={64} label>
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend verticalAlign="bottom" height={24} />
-                        </PieChart>
-                      )}
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      {selectedTypes.slice(0,6).map((t,i) => (
-                        <div key={t.type} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <span style={{ width: 12, height: 12, background: COLORS[i % COLORS.length], display: 'inline-block', borderRadius: 3 }} />
-                          <div style={{ fontSize: 13 }}>{t.type} <span style={{ color: 'var(--color-pk-muted)', marginLeft: 8 }}>({t.uses})</span></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+      {/* ── Tipos por país ── */}
+      <div className="pk-card" style={{ padding: '20px 24px' }}>
+        <SectionTitle>Tipos más usados por país</SectionTitle>
+        <NoFilterNotice />
 
-                  <div style={{ flex: 1, minWidth: 320 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 6 }}>Comparación por países — tipo: {topType || '—'}</div>
-                    <div style={{ width: '100%', height: 220 }}>
-                      {topType ? (
-                        <BarChart width={600} height={220} data={countryComparisonData} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis dataKey="country" type="category" width={140} />
-                          <Tooltip />
-                          <Bar dataKey="uses" fill="#2563eb" />
-                        </BarChart>
-                      ) : (
-                        <div style={{ color: 'var(--color-pk-muted)' }}>Selecciona un país para ver la comparación por tipo principal.</div>
-                      )}
+        {countriesList.length === 0 ? (
+          <div style={{ color: 'var(--color-pk-muted)', fontSize: 13 }}>Sin datos disponibles.</div>
+        ) : (
+          <>
+            {/* Country selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+              <label htmlFor="country-select" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--color-pk-subtle)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                País:
+              </label>
+              <select
+                id="country-select"
+                value={selCountry || ''}
+                onChange={e => setSelCountry(e.target.value)}
+                style={{
+                  padding: '7px 10px', borderRadius: 8, fontSize: 13,
+                  background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)',
+                  color: 'var(--color-pk-text)', cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {countriesList.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'start' }}>
+              {/* Donut */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-pk-subtle)', marginBottom: 10 }}>{selCountry}</div>
+                {pieData.length === 0 ? (
+                  <div style={{ color: 'var(--color-pk-muted)', fontSize: 12 }}>Sin datos para este país.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                        {pieData.map((_, i) => <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} stroke="transparent" />)}
+                      </Pie>
+                      <Tooltip content={<CardTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+                  {selTypes.slice(0, 6).map((t, i) => (
+                    <div key={t.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 2, background: TYPE_COLORS[i % TYPE_COLORS.length], display: 'inline-block' }} />
+                        <span style={{ fontSize: 12, color: 'var(--color-pk-subtle)' }}>{t.type}</span>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-pk-muted)' }}>{t.uses}</span>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+
+              {/* Bar chart: comparison across countries for top type */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-pk-subtle)', marginBottom: 10 }}>
+                  Países — tipo "{topType || '—'}"
+                </div>
+                {topType ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={countryComparison} layout="vertical" margin={{ left: 0, right: 12 }}>
+                      <CartesianGrid {...GRID} horizontal={false} />
+                      <XAxis type="number" tick={TICK} />
+                      <YAxis dataKey="country" type="category" width={110} tick={{ ...TICK, fontSize: 11 }} />
+                      <Tooltip content={<CardTooltip />} />
+                      <Bar dataKey="uses" fill="#6890F0" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{ color: 'var(--color-pk-muted)', fontSize: 12 }}>Selecciona un país para ver la comparativa.</div>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
 
-      <div className="pk-card" style={{ padding: 12 }}>
-        <h3 style={{ margin: 0, marginBottom: 8 }}>Distribución por rangos de edad</h3>
-        {bucketsChartData.length === 0 ? (
-          <div style={{ color: 'var(--color-pk-muted)' }}>No hay datos de edad.</div>
-        ) : (
-          <div style={{ width: '100%', height: 220 }}>
-            <BarChart width={600} height={220} data={bucketsChartData} onClick={(e)=>{ if (e && e.activeLabel) setSelectedBucket(e.activeLabel); }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="bucket" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="users" fill="#2563eb" name="Usuarios" />
-            </BarChart>
-            <div style={{ fontSize: 12, color: 'var(--color-pk-muted)', marginTop: 8 }}>Haga clic en una barra para ver distribución por país.</div>
-          </div>
-        )}
+      {/* ── Distribución de edad ── */}
+      <div className="pk-card" style={{ padding: '20px 24px' }}>
+        <SectionTitle>Distribución de usuarios por edad</SectionTitle>
+        <NoFilterNotice />
 
-        {selectedBucket && (
-          <div style={{ marginTop: 12 }}>
-            <h4 style={{ margin: '6px 0' }}>Países con usuarios en {selectedBucket}</h4>
-            {countriesForSelected.length === 0 ? (
-              <div>No hay países con datos en este rango.</div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '8px' }}>País</th>
-                      <th style={{ textAlign: 'right', padding: '8px' }}>Usuarios</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {countriesForSelected.map(r => (
-                      <tr key={`${r.country || 'c'}-${r.region || 'r'}`}>
-                        <td style={{ padding: '8px' }}>{r.country || '—'}</td>
-                        <td style={{ padding: '8px', textAlign: 'right' }}>{r.users}</td>
-                      </tr>
+        {bucketsChartData.length === 0 ? (
+          <div style={{ color: 'var(--color-pk-muted)', fontSize: 13 }}>Sin datos de edad disponibles.</div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={bucketsChartData}
+                margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
+                onClick={e => e?.activeLabel && setSelBucket(b => b === e.activeLabel ? null : e.activeLabel)}
+              >
+                <CartesianGrid {...GRID} />
+                <XAxis dataKey="bucket" tick={TICK} />
+                <YAxis allowDecimals={false} tick={TICK} />
+                <Tooltip content={<CardTooltip />} />
+                <Bar
+                  dataKey="users" name="Usuarios" radius={[6, 6, 0, 0]}
+                >
+                  {bucketsChartData.map((entry) => (
+                    <Cell
+                      key={entry.bucket}
+                      fill={entry.bucket === selBucket ? '#f59e0b' : '#6890F0'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <p style={{ fontSize: 11, color: 'var(--color-pk-muted)', marginTop: 6 }}>
+              Haz clic en una barra para ver el desglose por país.
+            </p>
+
+            {selBucket && (
+              <div style={{ marginTop: 16, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: '#fcd34d' }}>Rango {selBucket}</span>
+                  <button
+                    onClick={() => setSelBucket(null)}
+                    aria-label="Cerrar desglose"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-pk-muted)', fontSize: 16, lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                </div>
+                {countriesInBucket.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--color-pk-muted)' }}>Sin países con datos en este rango.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {countriesInBucket.slice(0, 20).map(r => (
+                      <div key={`${r.country}-${r.region}`} style={{
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-pk-border)',
+                        borderRadius: 8, padding: '6px 12px', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center',
+                      }}>
+                        <span style={{ color: 'var(--color-pk-subtle)' }}>{r.country || '—'}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--color-pk-text)' }}>{r.users}</span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                )}
               </div>
             )}
-            <div style={{ marginTop: 8 }}>
-              <button className="pk-btn" onClick={() => setSelectedBucket(null)}>Cerrar</button>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </div>

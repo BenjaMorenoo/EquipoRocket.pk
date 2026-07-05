@@ -3,6 +3,50 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaLayerGroup, FaWrench, FaBook, FaTrophy, FaUser, FaCog, FaDoorOpen, FaEye, FaTimes, FaBolt, FaUserPlus, FaPlus, FaCrown, FaVial, FaChartBar, FaBars } from 'react-icons/fa';
 import logo from '../assets/logo.png';
+import { getDataStatus } from '../services/api';
+
+const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function parseMetaDate(sourceUrl) {
+  if (!sourceUrl) return null;
+  const m = sourceUrl.match(/\/(\d{4})-(\d{2})\//);
+  if (!m) return null;
+  const [, y, mo] = m;
+  return `${MONTHS_ES[parseInt(mo, 10) - 1]} ${y}`;
+}
+
+export function DataStatusChip() {
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    getDataStatus().then(s => setStatus(s));
+  }, []);
+
+  if (!status?.loaded) return null;
+
+  const metaDate = parseMetaDate(status.source_url);
+  const loadedAt = status.fetched_at
+    ? new Date(status.fetched_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 16, left: 16, zIndex: 999,
+      display: 'flex', alignItems: 'center', gap: 6,
+      background: 'rgba(6,12,24,0.85)', backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(104,144,240,0.25)',
+      borderRadius: 20, padding: '5px 12px',
+      fontSize: 10, fontFamily: 'var(--font-heading)', fontWeight: 700,
+      letterSpacing: '0.06em', textTransform: 'uppercase',
+      color: 'var(--color-pk-blue)', whiteSpace: 'nowrap',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+      VGC{metaDate ? ` · ${metaDate}` : ''}
+      {loadedAt && <span style={{ color: 'var(--color-pk-muted)', fontWeight: 500, marginLeft: 2 }}>· {loadedAt}</span>}
+    </div>
+  );
+}
 
 const NAV_LINKS = [
   { id: 'teams',     path: '/equipos', label: 'Mis Equipos', icon: <FaLayerGroup /> },

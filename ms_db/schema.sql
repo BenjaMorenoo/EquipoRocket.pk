@@ -150,6 +150,7 @@ CREATE TABLE types (
 
 CREATE TABLE pokemon (
     id         SERIAL PRIMARY KEY,
+    pokeapi_id INTEGER,
     name       VARCHAR(100) UNIQUE,
     hp         INT,
     attack     INT,

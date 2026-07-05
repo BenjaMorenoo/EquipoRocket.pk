@@ -34,7 +34,7 @@ export const getTeamById = async (id) => {
   if (!team) return null;
   // Fetch team pokemons with ability/item/spread and moves
   const { rows: pokes } = await query(`
-    SELECT tp.id as team_pokemon_id, tp.slot, p.id as pokemon_id, p.name,
+    SELECT tp.id as team_pokemon_id, tp.slot, p.id as pokemon_id, p.pokeapi_id, p.name,
            tp.ability_id, a.name AS ability_name, tp.item_id, it.name AS item_name, tp.spread_id
     FROM team_pokemon tp
     JOIN pokemon p ON tp.pokemon_id = p.id

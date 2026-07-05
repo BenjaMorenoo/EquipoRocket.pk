@@ -135,18 +135,38 @@ def insert_spread(conn, nature_id, ev_string):
     return sid
 
 
+def fetch_pokeapi_id(name: str):
+    try:
+        r = requests.get(f"https://pokeapi.co/api/v2/pokemon/{name.lower()}", timeout=5)
+        if r.status_code == 200:
+            return r.json().get('id')
+    except Exception:
+        pass
+    return None
+
+
 def upsert_pokemon(conn, p):
     # p expected to contain keys: name, hp, attack, defense, sp_attack, sp_defense, speed
+    # pokeapi_id is fetched from PokeAPI by name (national dex number for sprites)
+    pokeapi_id = p.get('pokeapi_id') or fetch_pokeapi_id(p.get('name', ''))
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO pokemon (name, hp, attack, defense, sp_attack, sp_defense, speed)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
-            ON CONFLICT (name) DO UPDATE SET hp=COALESCE(EXCLUDED.hp,pokemon.hp), attack=COALESCE(EXCLUDED.attack,pokemon.attack), defense=COALESCE(EXCLUDED.defense,pokemon.defense), sp_attack=COALESCE(EXCLUDED.sp_attack,pokemon.sp_attack), sp_defense=COALESCE(EXCLUDED.sp_defense,pokemon.sp_defense), speed=COALESCE(EXCLUDED.speed,pokemon.speed)
+            INSERT INTO pokemon (name, pokeapi_id, hp, attack, defense, sp_attack, sp_defense, speed)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (name) DO UPDATE SET
+                pokeapi_id=COALESCE(EXCLUDED.pokeapi_id,pokemon.pokeapi_id),
+                hp=COALESCE(EXCLUDED.hp,pokemon.hp),
+                attack=COALESCE(EXCLUDED.attack,pokemon.attack),
+                defense=COALESCE(EXCLUDED.defense,pokemon.defense),
+                sp_attack=COALESCE(EXCLUDED.sp_attack,pokemon.sp_attack),
+                sp_defense=COALESCE(EXCLUDED.sp_defense,pokemon.sp_defense),
+                speed=COALESCE(EXCLUDED.speed,pokemon.speed)
             RETURNING id;
             """,
             (
                 p.get('name'),
+                pokeapi_id,
                 p.get('hp'),
                 p.get('attack'),
                 p.get('defense'),
@@ -411,6 +431,28 @@ def get_pool():
         return normalized
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read pool from DB: {e}")
+
+
+@app.get('/status')
+def get_status():
+    """Devuelve info de la última carga: URL fuente y timestamp."""
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT source_url, fetched_at FROM external_raw ORDER BY fetched_at DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+        conn.close()
+        if not row:
+            return {"loaded": False}
+        return {
+            "loaded": True,
+            "source_url": row[0],
+            "fetched_at": row[1].isoformat() if row[1] else None,
+        }
+    except Exception as e:
+        return {"loaded": False, "error": str(e)}
 
 
 if __name__ == '__main__':

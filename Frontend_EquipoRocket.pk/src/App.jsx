@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage     from './pages/AuthPage';
-import Navbar       from './components/Navbar';
+import Navbar, { DataStatusChip } from './components/Navbar';
 import Home         from './pages/Home';
 import TeamBuilder  from './pages/TeamBuilder';
 import MyTeams      from './pages/MyTeams';
@@ -88,20 +88,22 @@ function AppShell() {
     }
   };
 
+  const isAdminMode = user?.is_admin && !previewMode && location.pathname.startsWith('/admin');
+
   return (
     <div style={{ minHeight:'100vh' }} className="bg-grid">
-      <Navbar
-        currentPage={getCurrentPage()}
-        onNavigate={handleNavigate}
-        user={user}
-        onLogout={() => {
-          logout();
-          navigate('/');
-        }}
-        isPreview={previewMode}
-        onExitPreview={handleExitPreview}
-        onLoginClick={() => navigate('/auth')}
-      />
+      {!isAdminMode && (
+        <Navbar
+          currentPage={getCurrentPage()}
+          onNavigate={handleNavigate}
+          user={user}
+          onLogout={() => { logout(); navigate('/'); }}
+          isPreview={previewMode}
+          onExitPreview={handleExitPreview}
+          onLoginClick={() => navigate('/auth')}
+        />
+      )}
+      <DataStatusChip />
       <main style={{ position:'relative', zIndex:1 }}>
         <Routes>
           <Route path="/" element={<Home onNavigate={handleNavigate} />} />
