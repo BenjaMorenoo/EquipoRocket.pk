@@ -10,6 +10,7 @@ services:
       PGPASSWORD: example
       DB_NAME: equiporocketDb
       API_URL: https://www.pikalytics.com/api/p/2026-05/gen9championsvgc2026regma-1760/
+    
       PORT: 8000
     depends_on: []
     ports:

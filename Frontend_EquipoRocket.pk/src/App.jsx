@@ -21,6 +21,12 @@ function AppShell() {
   const [previewMode, setPreviewMode] = useState(false);
   const [adminInitialSection, setAdminInitialSection] = useState(null);
 
+  useEffect(() => {
+    if (user && location.pathname === '/auth') {
+      navigate(user.is_admin ? '/admin' : '/');
+    }
+  }, [user, location.pathname]);
+
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--color-pk-border)', borderTopColor:'var(--color-pk-red)', animation:'spin .8s linear infinite' }} />
