@@ -31,7 +31,7 @@ export function DataStatusChip() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 16, left: 16, zIndex: 999,
+      position: 'fixed', top: 12, right: 16, zIndex: 999,
       display: 'flex', alignItems: 'center', gap: 6,
       background: 'rgba(6,12,24,0.85)', backdropFilter: 'blur(10px)',
       border: '1px solid rgba(104,144,240,0.25)',

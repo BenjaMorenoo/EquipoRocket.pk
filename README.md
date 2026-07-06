@@ -84,6 +84,54 @@ El esquema relacional físico vive en [`ms_db/schema.sql`](ms_db/schema.sql) y s
 - **Sinergia**: `synergy_data` (sinergia por pares, alimentada por `ms_asistencia`).
 - **Simulaciones**: `battle_simulations`, `simulation_iterations`, `optimized_configurations`, `configuration_comparisons` (trazabilidad completa de cada corrida Monte Carlo).
 
+## Integridad de datos y borrado
+
+### Borrados físicos desde la plataforma
+
+La plataforma solo ejecuta tres `DELETE` físicos, todos sobre tablas hoja sin riesgo de FKs colgantes:
+
+| Operación | Tabla afectada | Contexto |
+|---|---|---|
+| Usuario quita Pokémon de su colección | `user_collections` | Nadie referencia esta tabla |
+| Editar Pokémon de un equipo | `team_pokemon_moves` → `team_pokemon` | Dentro de una transacción; se reemplazan los registros de inmediato |
+| `ms_montecarlo` persiste configuración | `team_pokemon_moves` | Limpia movimientos antes de re-insertar |
+
+El **borrado de equipos es siempre un soft-delete** (`UPDATE teams SET active = FALSE`). El trigger `trg_prevent_delete_teams` bloquea cualquier `DELETE` físico directo sobre `teams`, tanto desde la app como desde psql.
+
+Los **usuarios nunca se eliminan físicamente** a través de la aplicación — solo se desactivan (`is_active = FALSE`).
+
+### Cascadas que ocurren internamente
+
+Al editar los Pokémon de un equipo (`replaceTeamPokemons` en `teamModel.js`), el DELETE sobre `team_pokemon` dispara cascadas hacia:
+- `team_pokemon_moves` (ON DELETE CASCADE) — correcto
+- `optimized_configurations` (ON DELETE CASCADE) — las configuraciones optimizadas de simulaciones anteriores se eliminan al editar el equipo
+- `configuration_comparisons` (ON DELETE CASCADE) — igual
+
+Al eliminar físicamente una `battle_simulation` (no ocurre desde la app, pero si se hiciera por consola):
+- `simulation_iterations`, `optimized_configurations` y `configuration_comparisons` se eliminan en cascada.
+
+### FKs sin CASCADE — protección por RESTRICT
+
+Las FKs hacia tablas de referencia (`pokemon`, `abilities`, `items`, `moves`, `types`, `formats`) no tienen `ON DELETE` declarado, por lo que Postgres aplica **RESTRICT** por defecto: lanza un error antes de dejar una referencia colgante. No hay riesgo de corrupción silenciosa; sí puede impedir operaciones de mantenimiento directo en la DB.
+
+### Supresión de usuarios (Ley N° 21.719)
+
+El esquema anterior tenía un **deadlock**: `teams.user_id NOT NULL` + FK sin acción + trigger anti-DELETE en `teams` hacía imposible eliminar físicamente a un usuario que tuviese equipos, bloqueando el cumplimiento del derecho de supresión de datos personales.
+
+El schema fue corregido para permitir la supresión física de usuarios preservando los datos analíticos:
+
+| Tabla | FK modificada | Comportamiento |
+|---|---|---|
+| `teams` | `fk_teams_user` → `ON DELETE SET NULL` | Los equipos quedan en la BD sin dueño (analítica intacta) |
+| `team_feedback` | `fk_tf_user` → `ON DELETE SET NULL` | El historial de feedback queda sin usuario asociado |
+| `battle_simulations` | `fk_bs_user`, `fk_bs_team_a/b`, `fk_bs_winner_team` → `ON DELETE SET NULL` | Los resultados de simulaciones quedan en la BD con referencias en NULL |
+
+`teams.user_id` también fue cambiado de `NOT NULL` a nullable para permitir el SET NULL.
+
+#### Aplicar la migración en una BD existente
+
+El archivo `ms_db/schema.sql` incluye un bloque de `ALTER TABLE` idempotentes al final. Para aplicarlos en una base de datos ya creada, conectarse con psql y ejecutar ese bloque directamente, o correr `POST /init` de `ms_db` si la base aún no existe (aplica todo el schema desde cero).
+
 ## Cómo levantar el proyecto localmente (Docker)
 
 Requiere Docker Desktop con Docker Compose V2.

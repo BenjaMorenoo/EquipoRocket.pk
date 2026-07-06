@@ -218,7 +218,7 @@ CREATE TABLE formats (
 
 CREATE TABLE teams (
     id            SERIAL PRIMARY KEY,
-    user_id       INT          NOT NULL,
+    user_id       INT,
     name          VARCHAR(100),
     format_id     INT,
     synergy_score DECIMAL(5,2),
@@ -228,7 +228,7 @@ CREATE TABLE teams (
     created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMP,
     active        BOOLEAN      DEFAULT TRUE,
-    CONSTRAINT fk_teams_user   FOREIGN KEY (user_id)   REFERENCES users(id),
+    CONSTRAINT fk_teams_user   FOREIGN KEY (user_id)   REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_teams_format FOREIGN KEY (format_id) REFERENCES formats(id)
 );
 
@@ -302,7 +302,7 @@ CREATE TABLE team_feedback (
                CHECK (created_by IN ('manual', 'ai')),
     created_at TIMESTAMP   NOT NULL DEFAULT NOW(),
     CONSTRAINT fk_tf_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-    CONSTRAINT fk_tf_user FOREIGN KEY (user_id) REFERENCES users(id)
+    CONSTRAINT fk_tf_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 COMMENT ON COLUMN team_feedback.created_by IS 'manual o ai';
@@ -349,10 +349,10 @@ CREATE TABLE battle_simulations (
     algorithm_version     VARCHAR(20)  DEFAULT 'v1',
     created_at            TIMESTAMP    NOT NULL DEFAULT NOW(),
     completed_at          TIMESTAMP,
-    CONSTRAINT fk_bs_user        FOREIGN KEY (user_id)        REFERENCES users(id),
-    CONSTRAINT fk_bs_team_a      FOREIGN KEY (team_a_id)      REFERENCES teams(id),
-    CONSTRAINT fk_bs_team_b      FOREIGN KEY (team_b_id)      REFERENCES teams(id),
-    CONSTRAINT fk_bs_winner_team FOREIGN KEY (winner_team_id) REFERENCES teams(id)
+    CONSTRAINT fk_bs_user        FOREIGN KEY (user_id)        REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_bs_team_a      FOREIGN KEY (team_a_id)      REFERENCES teams(id) ON DELETE SET NULL,
+    CONSTRAINT fk_bs_team_b      FOREIGN KEY (team_b_id)      REFERENCES teams(id) ON DELETE SET NULL,
+    CONSTRAINT fk_bs_winner_team FOREIGN KEY (winner_team_id) REFERENCES teams(id) ON DELETE SET NULL
 );
 
 -- Migración idempotente para bases de datos ya existentes (creadas antes de esta corrección)
@@ -472,4 +472,30 @@ CREATE OR REPLACE FUNCTION prevent_teams_delete() RETURNS trigger LANGUAGE plpgs
 
 -- install trigger (idempotent)
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_prevent_delete_teams') THEN CREATE TRIGGER trg_prevent_delete_teams BEFORE DELETE ON teams FOR EACH ROW EXECUTE FUNCTION prevent_teams_delete(); END IF; END$$;
+
+-- =====================================================
+-- Migración idempotente: FKs con ON DELETE SET NULL
+-- Permite eliminar físicamente un usuario (ej. derecho de
+-- supresión Ley N°21.719) sin dejar FKs colgantes.
+-- Ejecutar una sola vez en bases de datos ya existentes.
+-- =====================================================
+
+-- teams.user_id: quitar NOT NULL + reemplazar FK con SET NULL
+ALTER TABLE teams ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE teams DROP CONSTRAINT IF EXISTS fk_teams_user;
+ALTER TABLE teams ADD CONSTRAINT fk_teams_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- team_feedback.user_id: SET NULL para preservar historial de feedback
+ALTER TABLE team_feedback DROP CONSTRAINT IF EXISTS fk_tf_user;
+ALTER TABLE team_feedback ADD CONSTRAINT fk_tf_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- battle_simulations: user_id y referencias a teams → SET NULL
+ALTER TABLE battle_simulations DROP CONSTRAINT IF EXISTS fk_bs_user;
+ALTER TABLE battle_simulations ADD CONSTRAINT fk_bs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE battle_simulations DROP CONSTRAINT IF EXISTS fk_bs_team_a;
+ALTER TABLE battle_simulations ADD CONSTRAINT fk_bs_team_a FOREIGN KEY (team_a_id) REFERENCES teams(id) ON DELETE SET NULL;
+ALTER TABLE battle_simulations DROP CONSTRAINT IF EXISTS fk_bs_team_b;
+ALTER TABLE battle_simulations ADD CONSTRAINT fk_bs_team_b FOREIGN KEY (team_b_id) REFERENCES teams(id) ON DELETE SET NULL;
+ALTER TABLE battle_simulations DROP CONSTRAINT IF EXISTS fk_bs_winner_team;
+ALTER TABLE battle_simulations ADD CONSTRAINT fk_bs_winner_team FOREIGN KEY (winner_team_id) REFERENCES teams(id) ON DELETE SET NULL;
 

@@ -27,7 +27,7 @@ function MiniCard({ title, sub, children, accent = '#f59e0b', loading, empty, em
       className="pk-card"
       onClick={onClick}
       style={{
-        padding: '18px 20px', display: 'flex', flexDirection: 'column', minHeight: 240,
+        padding: '18px 20px', display: 'flex', flexDirection: 'column', minHeight: 320,
         cursor: onClick ? 'pointer' : 'default',
         transition: 'border-color 0.15s, background 0.15s',
       }}
@@ -75,31 +75,31 @@ function CardTip({ active, payload, label, formatter }) {
 /* ── 1. Pokémon más usados (top 6) ── */
 function TopPokemonChart({ data }) {
   return (
-    <ResponsiveContainer width="100%" height={210}>
+    <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} layout="vertical" margin={{ top: 0, right: 55, left: 0, bottom: 0 }}>
         <CartesianGrid {...GRID} horizontal={false} />
         <XAxis type="number" allowDecimals={false} tick={TICK} />
         <YAxis
-          dataKey="name" type="category" width={90}
+          dataKey="pokemon_name" type="category" width={100}
           tick={{ ...TICK, fontSize: 11 }}
           tickFormatter={formatName}
         />
         <Tooltip
           content={({ active, payload, label }) => {
             if (!active || !payload?.length) return null;
-            const d = data.find(r => r.name === label) || {};
+            const d = data.find(r => r.pokemon_name === label) || {};
             return (
               <div style={{ background: 'var(--color-pk-card)', border: '1px solid var(--color-pk-border)', borderRadius: 9, padding: '9px 13px', fontSize: 12 }}>
                 <div style={{ fontWeight: 700, color: typeColor(d.type1), marginBottom: 4 }}>{formatName(label)}</div>
-                <div style={{ color: 'var(--color-pk-subtle)' }}>Equipos: <strong>{d.teams_used ?? d.count}</strong></div>
+                <div style={{ color: 'var(--color-pk-subtle)' }}>Equipos: <strong>{d.uses}</strong></div>
                 {d.type1 && <div style={{ color: 'var(--color-pk-muted)', fontSize: 11 }}>Tipo: {d.type1}</div>}
               </div>
             );
           }}
         />
-        <Bar dataKey={d => d.teams_used ?? d.count ?? 0} name="Equipos" radius={[0, 5, 5, 0]} isAnimationActive={false}>
+        <Bar dataKey="uses" name="Equipos" radius={[0, 5, 5, 0]} isAnimationActive={false}>
           {data.map((entry, i) => (
-            <Cell key={entry.name ?? i} fill={typeColor(entry.type1) || PALETTE[i % PALETTE.length]} fillOpacity={0.85} />
+            <Cell key={entry.pokemon_name ?? i} fill={typeColor(entry.type1) || PALETTE[i % PALETTE.length]} fillOpacity={0.85} />
           ))}
         </Bar>
       </BarChart>
@@ -109,10 +109,10 @@ function TopPokemonChart({ data }) {
 
 /* ── 2. Usuarios por región ── */
 function ByRegionChart({ data }) {
-  const total = data.reduce((s, d) => s + Number(d.users ?? d.count ?? 0), 0);
+  const total = data.reduce((s, d) => s + Number(d.total ?? 0), 0);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 12, alignItems: 'center' }}>
-      <ResponsiveContainer width="100%" height={210}>
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
           <CartesianGrid {...GRID} horizontal={false} />
           <XAxis type="number" allowDecimals={false} tick={TICK} />
@@ -121,14 +121,14 @@ function ByRegionChart({ data }) {
             tick={{ ...TICK, fontSize: 10 }}
           />
           <Tooltip content={<CardTip />} />
-          <Bar dataKey={d => Number(d.users ?? d.count ?? 0)} name="Usuarios" radius={[0, 5, 5, 0]} isAnimationActive={false}>
+          <Bar dataKey="total" name="Usuarios" radius={[0, 5, 5, 0]} isAnimationActive={false}>
             {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         {data.slice(0, 8).map((d, i) => {
-          const v = Number(d.users ?? d.count ?? 0);
+          const v = Number(d.total ?? 0);
           const pct = total ? Math.round(v / total * 100) : 0;
           return (
             <div key={d.region} style={{ fontSize: 11 }}>
@@ -219,7 +219,7 @@ function AIvsManualChart({ data }) {
 function TypeWinRateChart({ data }) {
   const top = data.slice(0, 8);
   return (
-    <ResponsiveContainer width="100%" height={210}>
+    <ResponsiveContainer width="100%" height={260}>
       <BarChart data={top} layout="vertical" margin={{ top: 0, right: 55, left: 0, bottom: 0 }}>
         <CartesianGrid {...GRID} horizontal={false} />
         <XAxis type="number" domain={[0, 100]} tick={TICK} tickFormatter={v => `${v}%`} />
