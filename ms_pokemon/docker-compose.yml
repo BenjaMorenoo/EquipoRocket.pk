@@ -2,8 +2,8 @@ version: '3.8'
 services:
   ms_pokemon:
     build: .
+    image: benjamorenoo/ms_pokemon:latest
     container_name: ms_pokemon
-    env_file: .env
     environment:
       - PGHOST=postgres
       - PGPORT=5432

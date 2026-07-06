@@ -1,0 +1,229 @@
+# EquipoRocket.pk — compose completo desde Docker Hub
+# Levanta todo el proyecto sin necesidad de código fuente ni builds locales.
+#
+# Uso:
+#   docker compose up -d
+#
+# Accesos una vez levantado:
+#   Frontend  → http://localhost:3000
+#   Gateway   → http://localhost:9000
+#
+# Para cambiar credenciales crea un archivo .env junto a este archivo:
+#   POSTGRES_PASSWORD=tupassword
+#   JWT_SECRET=tusecretojwt
+# y docker compose las tomará automáticamente.
+
+services:
+
+  # ── Base de datos ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: equiporocket_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-example}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - equiporocket-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Inicialización del schema ────────────────────────────────────────────────
+  # El entrypoint espera a postgres, aplica schema.sql de forma idempotente
+  # y luego arranca el servidor REST en :4002.
+  ms_db:
+    image: benjamorenoo/ms_db:latest
+    container_name: ms_db
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-example}
+      PGDEFAULTDB: postgres
+      DB_NAME: equiporocketDb
+      PORT: 4002
+    ports:
+      - "4002:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4002/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+  # ── Microservicios Node ──────────────────────────────────────────────────────
+  ms_auth:
+    image: benjamorenoo/ms_auth:latest
+    container_name: ms_auth
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: equiporocketDb
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-example}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret}
+    ports:
+      - "3001:3001"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  ms_usuarios:
+    image: benjamorenoo/ms_usuarios:latest
+    container_name: ms_usuarios
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: equiporocketDb
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-example}
+      PORT: 3003
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret}
+    ports:
+      - "3003:3003"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  ms_pokemon:
+    image: benjamorenoo/ms_pokemon:latest
+    container_name: ms_pokemon
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-example}
+      DB_NAME: equiporocketDb
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  # ── Microservicios Python ────────────────────────────────────────────────────
+  ms_carga_api:
+    image: benjamorenoo/ms_carga_api:latest
+    container_name: ms_carga_api
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-example}
+      DB_NAME: equiporocketDb
+      PORT: 8000
+      API_URL: ${PIKALYTICS_URL:-https://www.pikalytics.com/api/p/2026-05/gen9championsvgc2026regma-1760/}
+    ports:
+      - "8000:8000"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  ms_montecarlo:
+    image: benjamorenoo/ms_montecarlo:latest
+    container_name: ms_montecarlo
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-example}
+      PGDATABASE: equiporocketDb
+      MONTECARLO_API_URL: http://ms_carga_api:8000/api/pool
+    ports:
+      - "8010:8010"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  ms_asistencia:
+    image: benjamorenoo/ms_asistencia:latest
+    container_name: ms_asistencia
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-example}
+      DB_NAME: equiporocketDb
+    ports:
+      - "8005:8005"
+    depends_on:
+      ms_db:
+        condition: service_healthy
+    networks:
+      - equiporocket-net
+
+  # ── API Gateway ──────────────────────────────────────────────────────────────
+  ms_gateway:
+    image: benjamorenoo/ms_gateway:latest
+    container_name: api_gateway
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      MS_AUTH_URL: http://ms_auth:3001
+      MS_USUARIOS_URL: http://ms_usuarios:3003
+      MS_POKEMON_URL: http://ms_pokemon:3002
+      MS_CARGA_API_URL: http://ms_carga_api:8000
+      MS_MONTECARLO_URL: http://ms_montecarlo:8010
+      MS_ASISTENCIA_URL: http://ms_asistencia:8005
+    ports:
+      - "9000:8000"
+    depends_on:
+      - ms_auth
+      - ms_usuarios
+      - ms_pokemon
+      - ms_carga_api
+      - ms_montecarlo
+      - ms_asistencia
+    networks:
+      - equiporocket-net
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  # VITE_API_URL está compilado en la imagen apuntando a http://localhost:9000
+  frontend:
+    image: benjamorenoo/frontend:latest
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ms_gateway
+    networks:
+      - equiporocket-net
+
+# ── Volúmenes ────────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+
+# ── Red interna ──────────────────────────────────────────────────────────────
+networks:
+  equiporocket-net:
+    driver: bridge

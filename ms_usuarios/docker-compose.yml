@@ -2,8 +2,8 @@ version: '3.8'
 services:
   ms_usuarios:
     build: .
+    image: benjamorenoo/ms_usuarios:latest
     container_name: ms_usuarios
-    env_file: .env
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432

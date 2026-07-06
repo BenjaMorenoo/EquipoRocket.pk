@@ -1,6 +1,7 @@
 services:
   ms_montecarlo:
     build: .
+    image: benjamorenoo/ms_montecarlo:latest
     container_name: ms_montecarlo
     restart: unless-stopped
     ports:

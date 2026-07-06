@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: benjamorenoo/frontend:latest
     container_name: frontend
     ports:
       - "3000:3000"

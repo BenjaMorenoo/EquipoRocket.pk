@@ -2,7 +2,7 @@ version: '3.8'
 services:
   ms_asistencia:
     build: .
-    image: ms_asistencia:latest
+    image: benjamorenoo/ms_asistencia:latest
     container_name: ms_asistencia
     environment:
       PGHOST: postgres

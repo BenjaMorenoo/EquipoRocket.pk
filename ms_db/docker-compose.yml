@@ -18,6 +18,7 @@ services:
 
   ms_db:
     build: .
+    image: benjamorenoo/ms_db:latest
     restart: unless-stopped
     environment:
       PGHOST: postgres

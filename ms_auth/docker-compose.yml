@@ -1,8 +1,8 @@
 services:
   ms_auth:
     build: .
+    image: benjamorenoo/ms_auth:latest
     container_name: ms_auth
-    env_file: .env
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -11,6 +11,9 @@ services:
       DB_PORT: 5432
       DB_NAME: equiporocketDb
       DB_USER: postgres
+      DB_PASSWORD: example
+      PORT: 3001
+      JWT_SECRET: dev_jwt_secret
     networks:
       - equiporocket-net
 

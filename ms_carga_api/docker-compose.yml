@@ -2,6 +2,7 @@ version: '3.8'
 services:
   ms_carga_api:
     build: .
+    image: benjamorenoo/ms_carga_api:latest
     restart: unless-stopped
     environment:
       PGHOST: postgres
