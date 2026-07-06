@@ -3,6 +3,55 @@ import { FaTimes } from 'react-icons/fa';
 import { getBackendPokemons, getBackendPokemon, getCollections, recommendTeammateAI, getPokemon, analyzeTeamAI } from '../services/api';
 import TypeBadge from './TypeBadge';
 
+function PokemonGridItem({ p, isSelected, onToggle, cache }) {
+  const [sprite, setSprite] = useState(() => cache[p.name]?.sprite ?? undefined);
+
+  useEffect(() => {
+    if (cache[p.name] !== undefined) {
+      setSprite(cache[p.name].sprite);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const poke = await getPokemon(p.name.toLowerCase());
+        const url = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
+        if (!cancelled) {
+          cache[p.name] = { name: p.name, sprite: url, types: (poke?.types || []).map(t => t.type?.name || t.name) };
+          setSprite(url);
+        }
+      } catch {
+        if (!cancelled) {
+          cache[p.name] = { name: p.name, sprite: null, types: [] };
+          setSprite(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [p.name]);
+
+  return (
+    <button
+      onClick={() => onToggle(p.name)}
+      className={isSelected ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'}
+      style={{ textTransform: 'capitalize', justifyContent: 'flex-start', display: 'flex', gap: 8, alignItems: 'center', padding: '8px 10px' }}
+    >
+      <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {sprite ? (
+          <img src={sprite} alt={p.name} style={{ maxHeight: 28, maxWidth: 28, objectFit: 'contain' }} />
+        ) : sprite === null ? (
+          <div style={{ width: 28, height: 28, background: 'var(--color-pk-border)', borderRadius: 6 }} />
+        ) : (
+          <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--color-pk-border)', borderTopColor: 'var(--color-pk-red)', animation: 'spin 0.8s linear infinite' }} />
+        )}
+      </div>
+      <div style={{ flex: 1, textTransform: 'capitalize', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {p.name.replace(/-/g, ' ')}
+      </div>
+    </button>
+  );
+}
+
 export default function AssistedBuilderModal({ open, onClose, onApply }) {
   const [loading, setLoading] = useState(false);
   const [allList, setAllList] = useState([]); // {id,name}
@@ -12,7 +61,6 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
   const [typesFilter, setTypesFilter] = useState('');
   const [results, setResults] = useState([]); // array of teams
   const pokemonCache = useRef({});
-  const [, setCacheVersion] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -29,31 +77,6 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
       }
     })();
   }, [open]);
-
-  // Prefetch sprites for visible list (limited) when list or collection filter changes
-  useEffect(() => {
-    if (!open) return;
-    const display = useCollectionOnly ? allList.filter(p => collectionIds.has(p.id)) : allList;
-    const names = (display || []).map(p => p.name).slice(0, 80);
-    const cache = pokemonCache.current;
-    const toFetch = names.filter(n => !cache[n]);
-    if (!toFetch.length) return;
-    let cancelled = false;
-    (async () => {
-      await Promise.all(toFetch.map(async (name) => {
-        try {
-          const p = await getPokemon(name.toLowerCase());
-          const sprite = p?.sprites?.front_default || p?.sprites?.other?.['official-artwork']?.front_default || null;
-          const types = (p?.types || []).map(t => t.type?.name || t.name);
-          cache[name] = { name, sprite, types };
-        } catch (e) {
-          cache[name] = { name, sprite: null, types: [] };
-        }
-      }));
-      if (!cancelled) setCacheVersion(v => v + 1);
-    })();
-    return () => { cancelled = true; };
-  }, [open, allList, useCollectionOnly, collectionIds]);
 
   const toggleSeed = (name) => {
     setSeeds(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]);
@@ -73,19 +96,24 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
   };
 
   const buildTeams = async () => {
-    // Generate up to 3 candidate teams by greedy expansion using recommendTeammateAI
     setLoading(true);
     try {
-      // Determine candidate pool: if collection-only, restrict names
-      let poolNames = allList.map(p => p.name);
-      if (useCollectionOnly) {
-        poolNames = allList.filter(p => collectionIds.has(p.id)).map(p => p.name);
-      }
-      // If typesFilter provided, filter pool by types (naive: fetch details until we have filtered set)
+      // engine._norm normalizes to lowercase+spaces, so build a reverse map
+      // normalized DB name → original DB name for case-insensitive matching
+      const normName = (s) => (s || '').toLowerCase().replace(/-/g, ' ').trim();
+      const basePool = useCollectionOnly ? allList.filter(p => collectionIds.has(p.id)) : allList;
+      let poolNames = basePool.map(p => p.name);
+
+      // Build case-insensitive lookup: normalized → original DB name
+      const poolNormToOrig = {};
+      for (const n of poolNames) poolNormToOrig[normName(n)] = n;
+      // Convert an engine-returned (normalized) name to the original DB name
+      const toDbName = (n) => poolNormToOrig[normName(n)];
+
       if (typesFilter.trim()) {
         const wanted = typesFilter.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
         const filtered = [];
-        for (const p of allList) {
+        for (const p of basePool) {
           try {
             const detail = await getBackendPokemon(p.name).then(r => r.data?.pokemon).catch(() => null);
             const types = (detail?.types || []).map(t => (t.type?.name || t.name).toLowerCase());
@@ -95,34 +123,34 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
         if (filtered.length) poolNames = filtered;
       }
 
-      // seeds must be in pool
+      // seeds come from allList (original DB names), filter to those present in pool
       const seedsInPool = seeds.filter(s => poolNames.includes(s));
 
-      // get top 3 initial recommendations for branching
       const rec = await recommendTeammateAI(seedsInPool, 6).catch(() => ({ recommendations: {} }));
       const recObj = rec?.recommendations || {};
       const sorted = Object.entries(recObj).sort((a,b) => b[1]-a[1]).map(x=>x[0]);
-      const starters = sorted.slice(0,3);
+      // convert engine names → original DB names, drop any without a DB match
+      const starters = sorted.slice(0,3).map(toDbName).filter(Boolean);
       const candidateTeams = [];
 
-      for (const starter of (starters.length?starters:[''])) {
+      for (const starter of (starters.length ? starters : [''])) {
         const team = [...seedsInPool];
-        if (starter) team.push(starter);
-        // greedily fill to 6
+        if (starter && !team.includes(starter)) team.push(starter);
         while (team.length < 6) {
-          const r = await recommendTeammateAI(team, 6).catch(() => ({ recommendations:{} }));
+          const r = await recommendTeammateAI(team, 6).catch(() => ({ recommendations: {} }));
           const recs = r?.recommendations || {};
-          const choices = Object.entries(recs).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).filter(n => !team.includes(n) && poolNames.includes(n));
+          const normTeam = team.map(normName);
+          const choices = Object.entries(recs)
+            .sort((a,b) => b[1]-a[1])
+            .map(x => toDbName(x[0]))
+            .filter(n => n && !normTeam.includes(normName(n)));
           if (!choices.length) break;
           team.push(choices[0]);
         }
-        // ensure exactly 6 by padding from poolNames if needed
         if (team.length < 6) {
           for (const candidate of poolNames) {
-            if (!team.includes(candidate)) {
-              team.push(candidate);
-              if (team.length >= 6) break;
-            }
+            if (team.length >= 6) break;
+            if (!team.map(normName).includes(normName(candidate))) team.push(candidate);
           }
         }
         candidateTeams.push(team);
@@ -211,18 +239,16 @@ export default function AssistedBuilderModal({ open, onClose, onApply }) {
           <div style={{ flex:1 }}>
             <div style={{ marginBottom:8 }}>
               <label style={{ display:'block', fontSize:12, color:'var(--color-pk-muted)' }}>Semillas (selecciona hasta 4 Pokémon que quieras incluir)</label>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8, maxHeight:260, overflowY:'auto', paddingTop:8 }}>
-                {(useCollectionOnly ? allList.filter(p => collectionIds.has(p.id)) : allList).map(p => {
-                  const cached = pokemonCache.current[p.name] || {};
-                  return (
-                    <button key={p.name} onClick={() => toggleSeed(p.name)} className={seeds.includes(p.name)?'pk-btn pk-btn-primary':'pk-btn pk-btn-secondary'} style={{ textTransform:'capitalize', justifyContent:'flex-start', display:'flex', gap:8, alignItems:'center', padding:'8px 10px' }}>
-                      <div style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {cached.sprite ? <img src={cached.sprite} alt={p.name} style={{ maxHeight:28 }} /> : <div style={{ width:28, height:28, background:'#eee', borderRadius:6 }} />}
-                      </div>
-                      <div style={{ flex:1, textTransform:'capitalize', textAlign:'left' }}>{p.name}</div>
-                    </button>
-                  );
-                })}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))', gap:8, maxHeight:260, overflowY:'auto', paddingTop:8 }}>
+                {(useCollectionOnly ? allList.filter(p => collectionIds.has(p.id)) : allList).map(p => (
+                  <PokemonGridItem
+                    key={p.name}
+                    p={p}
+                    isSelected={seeds.includes(p.name)}
+                    onToggle={toggleSeed}
+                    cache={pokemonCache.current}
+                  />
+                ))}
               </div>
             </div>
 

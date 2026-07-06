@@ -43,8 +43,14 @@ const POKEAPI_NAME_MAP = {
 };
 
 export const getPokemon = async (nameOrId) => {
-  const raw = String(nameOrId).toLowerCase();
-  const resolved = typeof nameOrId === 'string' ? (POKEAPI_NAME_MAP[raw] ?? raw) : nameOrId;
+  if (typeof nameOrId !== 'string') {
+    const { data } = await pokeAPI.get(`/pokemon/${nameOrId}`);
+    return data;
+  }
+  const raw = nameOrId.toLowerCase().trim();
+  // engine.py normalizes names with spaces ("steelix mega"); PokeAPI needs hyphens ("steelix-mega")
+  const hyphenated = raw.replace(/\s+/g, '-');
+  const resolved = POKEAPI_NAME_MAP[raw] ?? POKEAPI_NAME_MAP[hyphenated] ?? hyphenated;
   const { data } = await pokeAPI.get(`/pokemon/${resolved}`);
   return data;
 };

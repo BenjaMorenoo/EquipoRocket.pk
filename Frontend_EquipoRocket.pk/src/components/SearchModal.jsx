@@ -11,21 +11,18 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const hasHovered = useRef(false);
+  const dataRef = useRef(null);
 
   const loadData = useCallback(async () => {
-    if (data || loading) return;
+    if (dataRef.current || loading) return dataRef.current;
     setLoading(true);
     try {
-      // First, fetch structured data from our DB service
       let db = null;
       try {
         const res = await getBackendPokemon(entry.name);
         db = res?.data?.pokemon || null;
-      } catch (e) {
-        db = null;
-      }
+      } catch { db = null; }
 
-      // Build minimal data object using DB results
       let built = db ? {
         id: db.id,
         name: db.name,
@@ -35,24 +32,24 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
         sprites: null,
       } : null;
 
-      // Fetch sprites from PokeAPI only (if available) — only to enrich built with sprites
       try {
         const poke = await getPokemon(entry.name);
         const spriteUrl = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
         if (spriteUrl && built) {
           built.sprites = { front_default: spriteUrl, other: { 'official-artwork': { front_default: spriteUrl } } };
         }
-      } catch (e) {
-        // ignore sprite fetch failures
-      }
+        // If DB lookup failed, use full PokeAPI data as fallback
+        if (!built && poke) built = poke;
+      } catch { /* ignore sprite fetch failures */ }
 
-      if (built) setData(built);
+      if (built) { dataRef.current = built; setData(built); }
+      return built;
     } catch {
-      // ignore
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [entry.name, data, loading]);
+  }, [entry.name, loading]);
 
   const sprite = data?.sprites?.front_default;
   const id     = data ? String(data.id).padStart(3, '0') : (entry.id ? String(entry.id).padStart(3, '0') : '???');
@@ -60,8 +57,8 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
   return (
     <button
       onClick={async () => {
-        if (!data) await loadData();
-        onSelect(data);
+        const pkData = dataRef.current || await loadData();
+        onSelect(pkData);
       }}
       onMouseEnter={() => {
         if (!hasHovered.current) {

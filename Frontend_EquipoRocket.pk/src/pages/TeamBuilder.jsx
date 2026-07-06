@@ -41,18 +41,26 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
 
   const openSearch = useCallback((i) => { setTargetSlot(i); setSearchOpen(true); setCreatedBy('manual'); }, []);
 
-  const handleSelect = useCallback((pokemon) => {
+  const handleSelect = useCallback(async (pokemon) => {
     if (targetSlot === null || !pokemon) return;
-    // preserve custom fields if replacing
+    let pk = pokemon;
+    // If sprites are missing (e.g. stale-closure fallback passed incomplete data), fetch from PokeAPI
+    if (!pk.sprites?.front_default && !pk.sprites?.other?.['official-artwork']?.front_default) {
+      try {
+        const api = await getPokemon(String(pk.name).toLowerCase());
+        if (api) {
+          pk = { ...pk, sprites: api.sprites, types: api.types?.length ? api.types : pk.types, stats: api.stats?.length ? api.stats : pk.stats };
+        }
+      } catch { /* keep pokemon as-is */ }
+    }
     setTeam(prev => {
       const n = [...prev];
-      // avoid duplicates: if this pokemon already occupies another slot, free that slot
-      const dupIdx = n.findIndex((p, idx) => idx !== targetSlot && p?.name === pokemon.name);
+      const dupIdx = n.findIndex((p, idx) => idx !== targetSlot && p?.name === pk.name);
       if (dupIdx !== -1) n[dupIdx] = null;
-      n[targetSlot] = { ...pokemon, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] };
+      n[targetSlot] = { ...pk, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] };
       return n;
     });
-    setSearchOpen(false); setSelectedPk(pokemon);
+    setSearchOpen(false); setSelectedPk(pk);
     setCreatedBy('manual');
   }, [targetSlot]);
 
@@ -493,6 +501,10 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                   backendPk.sprites = apiPk.sprites;
                   backendPk.types = apiPk.types;
                   backendPk.stats = apiPk.stats || backendPk.stats;
+                }
+                // Normalize moves to strings — ms_pokemon returns [{id, name}] objects
+                if (Array.isArray(backendPk.moves)) {
+                  backendPk.moves = backendPk.moves.map(m => (typeof m === 'string' ? m : m?.name)).filter(Boolean);
                 }
                 return backendPk;
               } catch (e) {
