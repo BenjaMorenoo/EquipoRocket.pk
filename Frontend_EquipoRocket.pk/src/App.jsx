@@ -12,6 +12,7 @@ import AdminPanel   from './pages/AdminPanel';
 import MisPokemon   from './pages/MisPokemon';
 import Simulations  from './pages/Simulations';
 import { createTeam, updateTeam } from './services/api';
+import Footer from './components/Footer';
 
 function AppShell() {
   const { user, logout, loading } = useAuth();
@@ -91,7 +92,7 @@ function AppShell() {
   const isAdminMode = user?.is_admin && !previewMode && location.pathname.startsWith('/admin');
 
   return (
-    <div style={{ minHeight:'100vh' }} className="bg-grid">
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }} className="bg-grid">
       {!isAdminMode && (
         <Navbar
           currentPage={getCurrentPage()}
@@ -104,7 +105,7 @@ function AppShell() {
         />
       )}
       <DataStatusChip />
-      <main style={{ position:'relative', zIndex:1 }}>
+      <main style={{ position:'relative', zIndex:1, flex:1 }}>
         <Routes>
           <Route path="/" element={<Home onNavigate={handleNavigate} />} />
           <Route path="/auth" element={<AuthPage onSuccess={() => navigate('/')} onBack={() => navigate(-1)} onNavigate={handleNavigate} />} />
@@ -117,6 +118,7 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>
+      {!isAdminMode && <Footer />}
     </div>
   );
 }
