@@ -747,8 +747,10 @@ def persist_best(payload: Any = Body(...)):
                 item_id = get_or_create_item(item_name)
                 if item_id:
                     cur.execute("UPDATE team_pokemon SET item_id=%s WHERE id=%s", (item_id, tp_id))
-                # moves
+                # moves — clear existing first so simulation results fully replace them
                 moves = p.get('moves') or []
+                if moves:
+                    cur.execute("DELETE FROM team_pokemon_moves WHERE team_pokemon_id=%s", (tp_id,))
                 for idx, m in enumerate(moves):
                     move_name = None
                     if isinstance(m, dict):

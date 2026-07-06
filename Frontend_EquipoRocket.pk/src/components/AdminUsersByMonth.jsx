@@ -56,9 +56,9 @@ export default function AdminUsersByMonth({ className, height = 220 }) {
             <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
             <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-pk-subtle)' }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--color-pk-subtle)' }} />
+            <YAxis allowDecimals={false} domain={[0, 'auto']} tick={{ fontSize: 12, fill: 'var(--color-pk-subtle)' }} />
             <Tooltip />
-            <Bar dataKey="users" fill="#ef4444" radius={[6,6,0,0]} />
+            <Bar dataKey="users" fill="#ef4444" radius={[6,6,0,0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         )}

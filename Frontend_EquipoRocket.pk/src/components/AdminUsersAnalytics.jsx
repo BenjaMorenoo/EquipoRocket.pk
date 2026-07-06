@@ -430,7 +430,7 @@ export default function AdminUsersAnalytics({ users = [], from = '', to = '' }) 
                 textAnchor={manyMonths ? 'end' : 'middle'}
                 interval={manyMonths ? 1 : 0}
               />
-              <YAxis allowDecimals={false} tick={TICK} />
+              <YAxis allowDecimals={false} domain={[0, 'auto']} tick={TICK} />
               <Tooltip content={<ChartTooltip />} />
               {monthlyAvg > 0 && (
                 <ReferenceLine
@@ -441,7 +441,7 @@ export default function AdminUsersAnalytics({ users = [], from = '', to = '' }) 
                   label={{ value: `Prom. ${monthlyAvg}`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight', dy: -4 }}
                 />
               )}
-              <Bar dataKey="users" name="Usuarios" fill="url(#barGradBlue)" radius={[5, 5, 0, 0]}>
+              <Bar dataKey="users" name="Usuarios" fill="url(#barGradBlue)" radius={[5, 5, 0, 0]} isAnimationActive={false}>
                 {!manyMonths && (
                   <LabelList
                     dataKey="users"
@@ -580,9 +580,9 @@ export default function AdminUsersAnalytics({ users = [], from = '', to = '' }) 
               <BarChart data={bucketTotals} margin={{ top: 24, right: 16, left: 0, bottom: 4 }}>
                 <CartesianGrid {...GRID} />
                 <XAxis dataKey="bucket" tick={TICK} />
-                <YAxis allowDecimals={false} tick={TICK} />
+                <YAxis allowDecimals={false} domain={[0, 'auto']} tick={TICK} />
                 <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="users" name="Usuarios" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="users" name="Usuarios" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                   <LabelList
                     dataKey="users"
                     position="top"
@@ -709,7 +709,7 @@ export default function AdminUsersAnalytics({ users = [], from = '', to = '' }) 
               </defs>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="bucket" tick={TICK} />
-              <YAxis yAxisId="left"  allowDecimals={false} tick={TICK} label={{ value: 'prom. equipos', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: 'var(--color-pk-muted)' }, dx: -2 }} />
+              <YAxis yAxisId="left"  allowDecimals={false} domain={[0, 'auto']} tick={TICK} label={{ value: 'prom. equipos', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: 'var(--color-pk-muted)' }, dx: -2 }} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={TICK} tickFormatter={v => `${v}%`} />
               <Tooltip
                 content={({ active, payload, label }) => {
@@ -725,10 +725,10 @@ export default function AdminUsersAnalytics({ users = [], from = '', to = '' }) 
                   );
                 }}
               />
-              <Bar yAxisId="left" dataKey="avg_teams" name="Prom. equipos" fill="url(#ageGrad)" radius={[5, 5, 0, 0]}>
+              <Bar yAxisId="left" dataKey="avg_teams" name="Prom. equipos" fill="url(#ageGrad)" radius={[5, 5, 0, 0]} isAnimationActive={false}>
                 <LabelList dataKey="avg_teams" position="top" style={{ fill: 'var(--color-pk-muted)', fontSize: 10, fontWeight: 700 }} />
               </Bar>
-              <Bar yAxisId="right" dataKey="prefers_ai_pct" name="Prefiere IA (%)" fill="#a855f7" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="right" dataKey="prefers_ai_pct" name="Prefiere IA (%)" fill="#a855f7" fillOpacity={0.7} radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', gap: 18, marginTop: 8 }}>

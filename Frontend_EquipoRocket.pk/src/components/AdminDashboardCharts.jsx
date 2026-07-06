@@ -97,7 +97,7 @@ function TopPokemonChart({ data }) {
             );
           }}
         />
-        <Bar dataKey={d => d.teams_used ?? d.count ?? 0} name="Equipos" radius={[0, 5, 5, 0]}>
+        <Bar dataKey={d => d.teams_used ?? d.count ?? 0} name="Equipos" radius={[0, 5, 5, 0]} isAnimationActive={false}>
           {data.map((entry, i) => (
             <Cell key={entry.name ?? i} fill={typeColor(entry.type1) || PALETTE[i % PALETTE.length]} fillOpacity={0.85} />
           ))}
@@ -121,7 +121,7 @@ function ByRegionChart({ data }) {
             tick={{ ...TICK, fontSize: 10 }}
           />
           <Tooltip content={<CardTip />} />
-          <Bar dataKey={d => Number(d.users ?? d.count ?? 0)} name="Usuarios" radius={[0, 5, 5, 0]}>
+          <Bar dataKey={d => Number(d.users ?? d.count ?? 0)} name="Usuarios" radius={[0, 5, 5, 0]} isAnimationActive={false}>
             {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
           </Bar>
         </BarChart>
@@ -241,7 +241,7 @@ function TypeWinRateChart({ data }) {
             );
           }}
         />
-        <Bar dataKey="win_rate" name="Win rate" radius={[0, 5, 5, 0]}>
+        <Bar dataKey="win_rate" name="Win rate" radius={[0, 5, 5, 0]} isAnimationActive={false}>
           {top.map(entry => (
             <Cell key={entry.type} fill={typeColor(entry.type)} fillOpacity={0.85} />
           ))}

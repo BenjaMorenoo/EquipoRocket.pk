@@ -1,6 +1,6 @@
 // src/pages/MyTeams.jsx
 import { useState, useEffect } from 'react';
-import { getTeams, deleteTeam as apiDeleteTeam, postTeamFeedback, getTeamFeedback } from '../services/api';
+import { getTeams, deleteTeam as apiDeleteTeam, postTeamFeedback, getTeamFeedback, getPokemon } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
 import { FaEdit, FaTrash, FaRegImages, FaQuestionCircle, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
@@ -70,9 +70,8 @@ function TeamCard({ team, onEdit, onDelete }) {
         const info = getLookup(pk);
         if (!info) return;
         const { lookup, key } = info;
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${encodeURIComponent(lookup)}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await getPokemon(lookup).catch(() => null);
+        if (!data) return;
         const sprite = data.sprites?.other?.['official-artwork']?.front_default || data.sprites?.front_default || null;
         if (sprite) {
           setSprites((prev) => ({ ...prev, [key]: sprite }));

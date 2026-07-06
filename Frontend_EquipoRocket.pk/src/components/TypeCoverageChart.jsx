@@ -100,9 +100,11 @@ export function TeamWeaknessChart({ team }) {
   const CustomBar = (props) => {
     const { x, y, width, height, rawType } = props;
     const colors = getTypeColor(rawType);
+    const absH = Math.abs(height);
+    const adjustedY = height < 0 ? y + height : y;
     return (
       <rect
-        x={x} y={y} width={width} height={height}
+        x={x} y={adjustedY} width={width} height={absH}
         fill={colors.bg}
         rx={3} ry={3}
         opacity={0.85}
@@ -158,7 +160,7 @@ export function TeamWeaknessChart({ team }) {
             }}
             cursor={{ fill: 'rgba(255,255,255,0.03)' }}
           />
-          <Bar dataKey="score" shape={<CustomBar />}>
+          <Bar dataKey="score" shape={<CustomBar />} isAnimationActive={false}>
             {data.map((entry) => (
               <Cell key={entry.rawType} />
             ))}

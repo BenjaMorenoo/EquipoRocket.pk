@@ -189,12 +189,12 @@ export default function AdminSimulationsAnalytics({ from = '', to = '' }) {
           <ComposedChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
             <CartesianGrid {...GRID} />
             <XAxis dataKey="type" tickFormatter={t => t === 'ai' ? 'IA' : 'Manual'} tick={TICK} />
-            <YAxis yAxisId="left"  tick={TICK} />
+            <YAxis yAxisId="left"  tick={TICK} domain={[0, 'auto']} />
             <YAxis yAxisId="right" orientation="right" tick={TICK} domain={[0, 100]} tickFormatter={v => `${v}%`} />
             <Tooltip content={<CUSTOM_TOOLTIP />} />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-            <Bar yAxisId="left" dataKey="Feedback +"  stackId="fb" fill="#22c55e" radius={[0,0,0,0]} />
-            <Bar yAxisId="left" dataKey="Feedback -"  stackId="fb" fill="#ef4444" radius={[4,4,0,0]} />
+            <Bar yAxisId="left" dataKey="Feedback +"  stackId="fb" fill="#22c55e" radius={[0,0,0,0]} isAnimationActive={false} />
+            <Bar yAxisId="left" dataKey="Feedback -"  stackId="fb" fill="#ef4444" radius={[4,4,0,0]} isAnimationActive={false} />
             <Line yAxisId="right" type="monotone" dataKey="Éxito sim (%)"  stroke="#6890F0" strokeWidth={2} dot={{ r: 4 }} />
             <Line yAxisId="right" type="monotone" dataKey="Confianza (%)"  stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 4 }} />
           </ComposedChart>
@@ -322,7 +322,7 @@ export default function AdminSimulationsAnalytics({ from = '', to = '' }) {
                   );
                 }}
               />
-              <Bar dataKey="win_rate" name="Win rate (%)" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="win_rate" name="Win rate (%)" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                 {typeRates.map(entry => (
                   <Cell key={entry.type} fill={typeColor(entry.type)} fillOpacity={0.85} />
                 ))}

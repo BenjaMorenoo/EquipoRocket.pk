@@ -10,8 +10,7 @@ import { STAT_LABELS, STAT_COLORS } from '../utils/typeColors';
 import { exportTeamToShowdown, downloadTxt } from '../utils/showdownExport';
 import { FaFileAlt, FaTrash, FaSave, FaChartBar, FaCheck } from 'react-icons/fa';
 import AssistedBuilderModal from '../components/AssistedBuilderModal';
-import { getPokemon, getBackendPokemon, getMovesList, getAbilitiesList, getItemsList, getSpreadsList } from '../services/api';
-import { createSpread } from '../services/api';
+import { getPokemon, getBackendPokemon, getMovesList, getAbilitiesList, getItemsList, getSpreadsList, updateTeam, createSpread } from '../services/api';
 import SpreadModal from '../components/SpreadModal';
 
 const TEAM_SIZE = 6;
@@ -43,7 +42,7 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
   const openSearch = useCallback((i) => { setTargetSlot(i); setSearchOpen(true); setCreatedBy('manual'); }, []);
 
   const handleSelect = useCallback((pokemon) => {
-    if (targetSlot === null) return;
+    if (targetSlot === null || !pokemon) return;
     // preserve custom fields if replacing
     setTeam(prev => {
       const n = [...prev];
@@ -53,7 +52,7 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
       n[targetSlot] = { ...pokemon, ability: prev[targetSlot]?.ability || null, item: prev[targetSlot]?.item || null, moves: prev[targetSlot]?.moves || [] };
       return n;
     });
-    setSearchOpen(false); setTargetSlot(null); setSelectedPk(pokemon);
+    setSearchOpen(false); setSelectedPk(pokemon);
     setCreatedBy('manual');
   }, [targetSlot]);
 
@@ -114,29 +113,36 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
     })();
   }, []);
 
-  // When a pokemon is selected for editing, load its specific abilities and moves
+  // When a different pokemon is selected for editing, reload its ability/move/spread options
   useEffect(() => {
-    if (!selectedPk?.name) return;
+    const name = selectedPk?.name;
+    if (!name) return;
+    // Pre-populate abilities immediately from already-loaded pokemon data (avoids blank dropdown flash)
+    if (selectedPk?.abilities?.length) {
+      const aopts = selectedPk.abilities
+        .map(a => ({ id: a.ability?.id || null, name: a.ability?.name || a.ability || '' }))
+        .filter(a => a.name);
+      if (aopts.length) setAbilitiesOptions(aopts);
+    }
     (async () => {
       try {
-        const resp = await getBackendPokemon(selectedPk.name);
+        const resp = await getBackendPokemon(name);
         const pk = resp?.data?.pokemon || resp || null;
         if (!pk) return;
-        // map abilities and moves to options
         const aopts = (pk.abilities || []).map(a => ({ id: a.ability?.id || null, name: a.ability?.name || a.ability }));
         const mopts = (pk.moves || []).map(m => ({ id: m.id, name: m.name }));
         setAbilitiesOptions(aopts);
         setMovesOptions(mopts);
-        // load spreads relevant to this pokemon
         try {
-          const spRes = await getSpreadsList(selectedPk.name);
+          const spRes = await getSpreadsList(name);
           setSpreadsOptions(spRes?.data?.spreads || []);
         } catch (e) { console.debug('getSpreadsList(pokemon) failed', e.message || e); }
       } catch (e) {
         console.debug('failed to load pokemon-specific data', e.message || e);
       }
     })();
-  }, [selectedPk]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPk?.name]);
 
   // Clear spreads when no pokemon selected
   useEffect(() => {
@@ -374,6 +380,9 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                   const v = e.target.value || null; setSelectedPk(prev => ({ ...prev, ability: v })); setTeam(prev => { const n = [...prev]; if (targetSlot !== null) n[targetSlot] = { ...n[targetSlot], ability: v }; return n; });
                 }} className="pk-input">
                   <option value="">(ninguna)</option>
+                  {selectedPk.ability && !abilitiesOptions.find(a => a.name === selectedPk.ability) && (
+                    <option value={selectedPk.ability}>{selectedPk.ability}</option>
+                  )}
                   {abilitiesOptions.map(a => (<option key={a.id} value={a.name}>{a.name}</option>))}
                 </select>
 
@@ -402,17 +411,20 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                 )}
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
                   <button className="pk-btn" onClick={async () => {
-                    // try to assign spread immediately via PATCH if we have team_pokemon_id
-                    if (!selectedPk || !selectedPk.spread_id) return alert('Selecciona un spread primero');
-                    const tpId = selectedPk.team_pokemon_id || team[targetSlot]?.team_pokemon_id || null;
-                    if (!tpId) return alert('Este Pokémon aún no está persistido en el equipo. Guarda el equipo completo para aplicar spreads.');
+                    if (!initialTeam?.id) return alert('Guarda el equipo completo primero antes de asignar atributos.');
                     try {
-                      const msUsersBase = import.meta.env.VITE_MS_USUARIOS_URL || 'http://localhost:3003/api';
-                      const token = localStorage.getItem('pk_token');
-                      const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-                      await fetch(`${msUsersBase}/teams/${initialTeam?.id}/pokemon/${tpId}/spread`, { method:'PATCH', headers, body: JSON.stringify({ spread_id: selectedPk.spread_id }) });
-                      alert('Spread asignado correctamente.');
-                    } catch (e) { alert('Error asignando spread: '+(e.message||e)); }
+                      const payloadPokemons = team.filter(Boolean).map((pk, idx) => ({
+                        id: pk.id || pk.pokemon_id,
+                        name: pk.name,
+                        slot: idx + 1,
+                        ability: pk.ability || null,
+                        item: pk.item || null,
+                        spread_id: pk.spread_id || null,
+                        moves: Array.isArray(pk.moves) ? pk.moves.map(m => (typeof m === 'object' ? (m.id || m.name) : m)) : [],
+                      }));
+                      await updateTeam(initialTeam.id, { name: teamName, pokemon: payloadPokemons });
+                      alert('Atributos guardados correctamente.');
+                    } catch (e) { alert('Error guardando atributos: ' + (e.message || e)); }
                   }} style={{ padding:'6px 10px', fontSize:12 }}>Asignar ahora</button>
                 </div>
 
@@ -428,6 +440,9 @@ export default function TeamBuilder({ initialTeam, onSave, onNavigate }) {
                       } return n; });
                     }} className="pk-input">
                       <option value="">(vacío)</option>
+                      {selectedPk.moves?.[mi] && !movesOptions.find(m => m.name === selectedPk.moves[mi]) && (
+                        <option value={selectedPk.moves[mi]}>{selectedPk.moves[mi]}</option>
+                      )}
                       {movesOptions.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}
                     </select>
                   ))}

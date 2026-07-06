@@ -35,14 +35,11 @@ function PokemonListItem({ entry, onSelect, isSelected }) {
         sprites: null,
       } : null;
 
-      // Fetch sprites from PokeAPI only (if available)
+      // Fetch sprites from PokeAPI only (if available) — only to enrich built with sprites
       try {
         const poke = await getPokemon(entry.name);
         const spriteUrl = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
-        if (spriteUrl) {
-          if (!built) {
-            built = { id: poke.id, name: poke.name, stats: poke.stats || [], types: poke.types || [], abilities: [], sprites: null };
-          }
+        if (spriteUrl && built) {
           built.sprites = { front_default: spriteUrl, other: { 'official-artwork': { front_default: spriteUrl } } };
         }
       } catch (e) {

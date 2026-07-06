@@ -254,7 +254,7 @@ export default function AdminTeamsCrossAnalysis({ from = '', to = '' }) {
                   );
                 }}
               />
-              <Bar yAxisId="left" dataKey="complete_pct" name="% Completos" fill="#22c55e" fillOpacity={0.75} radius={[4, 4, 0, 0]}>
+              <Bar yAxisId="left" dataKey="complete_pct" name="% Completos" fill="#22c55e" fillOpacity={0.75} radius={[4, 4, 0, 0]} isAnimationActive={false}>
                 <LabelList dataKey="complete_pct" position="top" style={{ fontSize: 10, fill: 'var(--color-pk-muted)', fontWeight: 700 }} formatter={v => `${v}%`} />
               </Bar>
               <Line yAxisId="right" type="monotone" dataKey="ai_pct" name="% IA" stroke="#7c3aed" strokeWidth={2} dot={{ fill: '#7c3aed', r: 3 }} />

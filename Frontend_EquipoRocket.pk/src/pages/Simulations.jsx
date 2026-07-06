@@ -1,8 +1,8 @@
 // src/pages/Simulations.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getTeams, getPublicTeams, getBackendPokemon, getPokemon, simulateBattle } from '../services/api';
-import { persistBestConfiguration, postTeamFeedback } from '../services/api';
+import { getTeams, getPublicTeams, getBackendPokemon, getPokemon, simulateBattle, updateTeam } from '../services/api';
+import { postTeamFeedback } from '../services/api';
 import { FaPlay, FaVial, FaChartLine } from 'react-icons/fa';
 
 export default function Simulations({ onNavigate }) {
@@ -77,7 +77,7 @@ export default function Simulations({ onNavigate }) {
       if (res && (res.success === true || typeof res.win_rate !== 'undefined')) {
         const r = res;
         const pct = Math.round(r.win_rate || 0);
-        setSimulationResult({ winRate: pct, summary: `Win rate ${pct}%`, best_team: r.best_team });
+        setSimulationResult({ winRate: pct, summary: `Win rate ${pct}%`, best_team: r.best_team, sims: payload.sims || 500 });
       } else {
         throw new Error('Simulation failed');
       }
@@ -435,13 +435,25 @@ export default function Simulations({ onNavigate }) {
                   const ok = window.confirm('¿Deseas traspasar la configuración (moves/ability/item) al equipo seleccionado? Esto sobrescribirá los datos actuales.');
                   if (!ok) return;
                   try {
-                    const payload = { team_id: selectedTeam.id, best_team: simulationResult.best_team, user_id: user?.id };
-                    const res = await persistBestConfiguration(payload);
-                    if (res?.success) {
-                      alert('Movimientos traspasados correctamente al equipo.');
-                    } else {
-                      throw new Error('Error al persistir');
+                    const normalize = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
+                    const bestByName = {};
+                    for (const b of (simulationResult.best_team || [])) {
+                      bestByName[normalize(b.name)] = b;
                     }
+                    const updatedPokemons = (selectedTeam.pokemon || []).map((pk, idx) => {
+                      const best = bestByName[normalize(pk.name)];
+                      return {
+                        id: pk.pokemon_id || pk.id,
+                        name: pk.name,
+                        slot: pk.slot || idx + 1,
+                        ability: best?.ability || pk.ability || null,
+                        item: best?.item || pk.item || null,
+                        spread_id: pk.spread_id || null,
+                        moves: best?.moves?.length ? best.moves : (pk.moves?.map(m => (typeof m === 'object' ? m.name : m)) || []),
+                      };
+                    });
+                    await updateTeam(selectedTeam.id, { name: selectedTeam.name, pokemon: updatedPokemons });
+                    alert('Movimientos traspasados correctamente al equipo.');
                   } catch (e) {
                     console.error('Persist error', e.message || e);
                     alert('No se pudo traspasar: ' + (e.message || e));

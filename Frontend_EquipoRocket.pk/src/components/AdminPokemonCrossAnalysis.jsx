@@ -167,7 +167,7 @@ export default function AdminPokemonCrossAnalysis({ from = '', to = '' }) {
                 interval={0}
                 tickFormatter={formatName}
               />
-              <YAxis yAxisId="left"  allowDecimals={false} tick={TICK} label={{ value: 'usos', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: 'var(--color-pk-muted)' }, dx: -2 }} />
+              <YAxis yAxisId="left"  allowDecimals={false} domain={[0, 'auto']} tick={TICK} label={{ value: 'usos', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: 'var(--color-pk-muted)' }, dx: -2 }} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={TICK} tickFormatter={v => `${v}%`} />
               <ReferenceLine yAxisId="right" y={50} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 3" />
               <Tooltip
@@ -184,7 +184,7 @@ export default function AdminPokemonCrossAnalysis({ from = '', to = '' }) {
                   );
                 }}
               />
-              <Bar yAxisId="left" dataKey="teams_used" name="Equipos" radius={[3, 3, 0, 0]}>
+              <Bar yAxisId="left" dataKey="teams_used" name="Equipos" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                 {usageWithSims.slice(0, 20).map(entry => (
                   <Cell key={entry.pokemon_id} fill={typeColor(entry.type1)} fillOpacity={0.7} />
                 ))}
