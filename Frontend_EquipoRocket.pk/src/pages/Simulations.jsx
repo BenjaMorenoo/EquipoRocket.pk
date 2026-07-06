@@ -14,6 +14,7 @@ export default function Simulations({ onNavigate }) {
   const [opponentTeam, setOpponentTeam] = useState(null);
   const [simulationResult, setSimulationResult] = useState(null);
   const [simulating, setSimulating] = useState(false);
+  const [bestTeamSprites, setBestTeamSprites] = useState({});
 
   useEffect(() => {
     let mounted = true;
@@ -52,6 +53,27 @@ export default function Simulations({ onNavigate }) {
     return () => { mounted = false; };
   }, [user]);
 
+  useEffect(() => {
+    const entries = simulationResult?.best_team;
+    if (!entries?.length) return;
+    const toApiName = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
+    let cancelled = false;
+    (async () => {
+      const map = {};
+      await Promise.all(entries.map(async (p) => {
+        const apiName = toApiName(p?.name || p?.pokemon || '');
+        if (!apiName) return;
+        try {
+          const poke = await getPokemon(apiName);
+          const url = poke?.sprites?.other?.['official-artwork']?.front_default || poke?.sprites?.front_default || null;
+          if (url) map[apiName] = url;
+        } catch { /* ignore missing sprites */ }
+      }));
+      if (!cancelled) setBestTeamSprites(map);
+    })();
+    return () => { cancelled = true; };
+  }, [simulationResult?.best_team]);
+
   const handleSimulate = async () => {
     if (!selectedTeam || !opponentTeam) {
       alert('Selecciona ambos equipos antes de simular');
@@ -77,7 +99,8 @@ export default function Simulations({ onNavigate }) {
       if (res && (res.success === true || typeof res.win_rate !== 'undefined')) {
         const r = res;
         const pct = Math.round(r.win_rate || 0);
-        setSimulationResult({ winRate: pct, summary: `Win rate ${pct}%`, best_team: r.best_team, sims: payload.sims || 500 });
+        const oppPct = Math.round(r.opponent_win_rate != null ? r.opponent_win_rate : (100 - pct));
+        setSimulationResult({ winRate: pct, oppWinRate: oppPct, summary: `Win rate ${pct}%`, best_team: r.best_team, sims: payload.sims || 500 });
       } else {
         throw new Error('Simulation failed');
       }
@@ -135,6 +158,9 @@ export default function Simulations({ onNavigate }) {
     );
   }
 
+  const fullTeams = teams.filter(t => (t.pokemon?.length || 0) === 6);
+  const fullRivalTeams = rivalTeams.filter(t => (t.pokemon?.length || 0) === 6);
+
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '36px 24px' }}>
       {/* Header */}
@@ -153,9 +179,9 @@ export default function Simulations({ onNavigate }) {
             Tu Equipo
           </h2>
 
-          {teams.length === 0 ? (
+          {fullTeams.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-pk-muted)' }}>
-              <p>No tienes equipos creados.</p>
+              <p>No tienes equipos con 6 Pokémon.</p>
               <button
                 onClick={() => onNavigate('builder')}
                 className="pk-btn pk-btn-primary"
@@ -166,7 +192,7 @@ export default function Simulations({ onNavigate }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {teams.map((team) => (
+              {fullTeams.map((team) => (
                 <button
                   key={team.id}
                   onClick={async () => {
@@ -267,16 +293,16 @@ export default function Simulations({ onNavigate }) {
               >
                 <option value="">-- Selecciona un equipo --</option>
                 <optgroup label="Mis equipos">
-                  {teams.map((team) => (
+                  {fullTeams.map((team) => (
                     <option key={`mine-${team.id}`} value={team.id}>
-                      {team.name} ({team.pokemon?.length || 0} Pokémon)
+                      {team.name} (6 Pokémon)
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Equipos rivales">
-                  {rivalTeams.map((team) => (
+                  {fullRivalTeams.map((team) => (
                     <option key={`r-${team.id}`} value={team.id}>
-                      {team.name} — {team.owner_username || team.owner_id || 'Usuario'} ({team.pokemon?.length || 0} Pokémon)
+                      {team.name} — {team.owner_username || team.owner_id || 'Usuario'} (6 Pokémon)
                     </option>
                   ))}
                 </optgroup>
@@ -336,142 +362,241 @@ export default function Simulations({ onNavigate }) {
       </div>
 
       {/* Resultados */}
-      {simulationResult && (
-        <div
-          className="pk-card fade-up"
-          style={{
-            padding: 32,
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.05), rgba(59,130,246,0.05))',
-            border: '1px solid rgba(34,197,94,0.2)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <FaChartLine style={{ fontSize: 28, color: 'var(--color-pk-green)' }} />
-            <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, margin: 0 }}>
-              Resultado de la Simulación
-            </h3>
-          </div>
+      {simulationResult && (() => {
+        const wr = simulationResult.winRate;
+        const oppWr = simulationResult.oppWinRate ?? (100 - wr);
+        const fmtName = (s) => (s || '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const diff = wr - oppWr;
+        const verdict = diff >= 15 ? '¡Victoria clara!' : diff >= 5 ? 'Ligera ventaja' : diff >= -5 ? 'Combate parejo' : diff >= -15 ? 'Ligera desventaja' : 'Desfavorable';
+        const verdictColor = diff >= 5 ? '#22c55e' : diff >= -5 ? '#f59e0b' : '#ef4444';
 
-          {/* Win Rate grande */}
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '24px',
-              background: 'var(--color-pk-surface)',
-              borderRadius: '12px',
-              marginBottom: 24,
-              border: '1px solid var(--color-pk-border)',
-            }}
-          >
-            <div style={{ fontSize: 14, color: 'var(--color-pk-muted)', marginBottom: 8 }}>Win Rate Estimado</div>
-            <div
-              style={{
-                fontSize: 56,
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                background: simulationResult.winRate >= 50 ? 'linear-gradient(135deg, #22c55e, #84cc16)' : 'linear-gradient(135deg, #ef4444, #f97316)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              {simulationResult.winRate}%
+        return (
+          <div className="pk-card fade-up" style={{ overflow: 'hidden', border: '1px solid var(--color-pk-border)' }}>
+
+            {/* Header strip */}
+            <div style={{
+              padding: '16px 28px',
+              background: 'linear-gradient(90deg, rgba(34,197,94,0.12), rgba(59,130,246,0.12))',
+              borderBottom: '1px solid var(--color-pk-border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              <FaChartLine style={{ color: verdictColor, fontSize: 20 }} />
+              <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Resultado de Simulación
+              </span>
+              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: verdictColor }}>
+                {verdict}
+              </span>
             </div>
-          </div>
 
-          {/* Resumen */}
-          <div
-            style={{
-              padding: 16,
-              background: 'var(--color-pk-surface)',
-              borderRadius: '8px',
-              border: '1px solid var(--color-pk-border)',
-              marginBottom: 16,
-            }}
-          >
-            <p style={{ margin: 0, color: 'var(--color-pk-text)', fontSize: 14 }}>
-              {simulationResult.summary}
-            </p>
-          </div>
-          {/* Mejor configuración sugerida */}
-          {simulationResult.best_team && Array.isArray(simulationResult.best_team) && (
-            <div style={{ marginTop: 16, padding: 16, background: 'var(--color-pk-surface)', borderRadius: 8, border: '1px solid var(--color-pk-border)' }}>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Mejor configuración sugerida</div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {simulationResult.best_team.map((p, idx) => {
-                  const name = p?.name || p?.pokemon || p?.display_name || `#${idx+1}`;
-                  const formatField = (v) => {
-                    if (!v) return null;
-                    if (typeof v === 'string') return v;
-                    if (Array.isArray(v)) return v.join(', ');
-                    if (typeof v === 'object') return v.ability || v.name || v.item || v.move || JSON.stringify(v);
-                    return String(v);
-                  };
-                  const item = formatField(p?.item);
-                  const ability = formatField(p?.ability);
-                  const moves = Array.isArray(p?.moves) ? p.moves.map(m => formatField(m)).filter(Boolean) : [];
-                  return (
-                    <div key={idx} style={{ width: 160, padding: 8, borderRadius: 8, background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.04)' }}>
-                      <div style={{ fontWeight: 700 }}>{name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-pk-muted)', marginTop: 6 }}>Item: {item || '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-pk-muted)' }}>Ability: {ability || '—'}</div>
-                      <div style={{ marginTop: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700 }}>Moves</div>
-                        <div style={{ fontSize: 12 }}>{moves.join(', ') || '—'}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* VS matchup row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 0, padding: '28px 28px 0' }}>
+              {/* Team A */}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 12, fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-pk-muted)', marginBottom: 6 }}>Tu Equipo</div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--color-pk-text)' }}>{selectedTeam?.name || '—'}</div>
+                <div style={{
+                  fontSize: 64,
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  background: wr >= 50 ? 'linear-gradient(135deg, #22c55e, #86efac)' : 'linear-gradient(135deg, #ef4444, #fca5a5)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>{wr}%</div>
+                <div style={{ fontSize: 11, color: 'var(--color-pk-muted)', marginTop: 4, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em' }}>WIN RATE</div>
+              </div>
+
+              {/* VS badge */}
+              <div style={{ padding: '0 20px', textAlign: 'center' }}>
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: 'var(--color-pk-red)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 900,
+                  fontSize: 16,
+                  color: '#fff',
+                  letterSpacing: '0.04em',
+                  boxShadow: '0 4px 16px rgba(220,38,38,0.35)',
+                }}>VS</div>
+              </div>
+
+              {/* Team B */}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 12, fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-pk-muted)', marginBottom: 6 }}>Equipo Rival</div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--color-pk-text)' }}>{opponentTeam?.name || '—'}</div>
+                <div style={{
+                  fontSize: 64,
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  background: oppWr >= 50 ? 'linear-gradient(135deg, #22c55e, #86efac)' : 'linear-gradient(135deg, #ef4444, #fca5a5)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}>{oppWr}%</div>
+                <div style={{ fontSize: 11, color: 'var(--color-pk-muted)', marginTop: 4, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em' }}>WIN RATE</div>
               </div>
             </div>
-          )}
 
-          {/* Botón para traspasar movimientos al equipo seleccionado */}
-          {simulationResult?.best_team && selectedTeam?.id && (
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button
-                className="pk-btn pk-btn-secondary"
-                onClick={async () => {
-                  const ok = window.confirm('¿Deseas traspasar la configuración (moves/ability/item) al equipo seleccionado? Esto sobrescribirá los datos actuales.');
-                  if (!ok) return;
-                  try {
-                    const normalize = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
-                    const bestByName = {};
-                    for (const b of (simulationResult.best_team || [])) {
-                      bestByName[normalize(b.name)] = b;
-                    }
-                    const updatedPokemons = (selectedTeam.pokemon || []).map((pk, idx) => {
-                      const best = bestByName[normalize(pk.name)];
-                      return {
-                        id: pk.pokemon_id || pk.id,
-                        name: pk.name,
-                        slot: pk.slot || idx + 1,
-                        ability: best?.ability || pk.ability || null,
-                        item: best?.item || pk.item || null,
-                        spread_id: pk.spread_id || null,
-                        moves: best?.moves?.length ? best.moves : (pk.moves?.map(m => (typeof m === 'object' ? m.name : m)) || []),
-                      };
-                    });
-                    await updateTeam(selectedTeam.id, { name: selectedTeam.name, pokemon: updatedPokemons });
-                    alert('Movimientos traspasados correctamente al equipo.');
-                  } catch (e) {
-                    console.error('Persist error', e.message || e);
-                    alert('No se pudo traspasar: ' + (e.message || e));
-                  }
-                }}
-                style={{ padding: '8px 14px', fontSize: 13 }}
-              >
-                Traspasar Movimientos al Equipo
-              </button>
+            {/* Probability bar */}
+            <div style={{ padding: '20px 28px 28px' }}>
+              <div style={{ position: 'relative', height: 14, borderRadius: 99, overflow: 'hidden', background: 'var(--color-pk-surface)', border: '1px solid var(--color-pk-border)' }}>
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${Math.round(wr / (wr + oppWr) * 100)}%`,
+                  background: diff >= 0 ? 'linear-gradient(90deg, #16a34a, #22c55e)' : 'linear-gradient(90deg, #dc2626, #ef4444)',
+                  transition: 'width 1s cubic-bezier(0.4,0,0.2,1)',
+                  borderRadius: 99,
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--color-pk-muted)', fontFamily: 'var(--font-heading)', fontWeight: 700 }}>
+                <span style={{ color: wr >= 50 ? '#22c55e' : '#ef4444' }}>{selectedTeam?.name} {wr}%</span>
+                <span style={{ color: oppWr >= 50 ? '#22c55e' : '#ef4444' }}>{oppWr}% {opponentTeam?.name}</span>
+              </div>
             </div>
-          )}
 
-          {/* Placeholder para detalles de matchups */}
-          <div style={{ fontSize: 13, color: 'var(--color-pk-muted)', marginTop: 12 }}>
-            <strong>Análisis detallado:</strong> Los matchups específicos Pokémon vs Pokémon se mostrarán aquí cuando el motor esté implementado.
+            {/* Best team config */}
+            {simulationResult.best_team && Array.isArray(simulationResult.best_team) && simulationResult.best_team.length > 0 && (
+              <div style={{ padding: '0 28px 28px' }}>
+                <div style={{
+                  borderTop: '1px solid var(--color-pk-border)',
+                  paddingTop: 24,
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Mejor Configuración Sugerida
+                  </div>
+                  {selectedTeam?.id && (
+                    <button
+                      className="pk-btn pk-btn-primary"
+                      onClick={async () => {
+                        const ok = window.confirm('¿Deseas traspasar la configuración (moves/ability/item) al equipo seleccionado? Esto sobrescribirá los datos actuales.');
+                        if (!ok) return;
+                        try {
+                          const normalize = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
+                          const bestByName = {};
+                          for (const b of (simulationResult.best_team || [])) {
+                            bestByName[normalize(b.name)] = b;
+                          }
+                          const updatedPokemons = (selectedTeam.pokemon || []).map((pk, idx) => {
+                            const best = bestByName[normalize(pk.name)];
+                            return {
+                              id: pk.pokemon_id || pk.id,
+                              name: pk.name,
+                              slot: pk.slot || idx + 1,
+                              ability: best?.ability || pk.ability || null,
+                              item: best?.item || pk.item || null,
+                              spread_id: pk.spread_id || null,
+                              moves: best?.moves?.length ? best.moves : (pk.moves?.map(m => (typeof m === 'object' ? m.name : m)) || []),
+                            };
+                          });
+                          await updateTeam(selectedTeam.id, { name: selectedTeam.name, pokemon: updatedPokemons });
+                          alert('Movimientos traspasados correctamente al equipo.');
+                        } catch (e) {
+                          console.error('Persist error', e.message || e);
+                          alert('No se pudo traspasar: ' + (e.message || e));
+                        }
+                      }}
+                      style={{ padding: '8px 18px', fontSize: 13 }}
+                    >
+                      Traspasar al Equipo →
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {simulationResult.best_team.map((p, idx) => {
+                    const name = p?.name || p?.pokemon || `#${idx + 1}`;
+                    const toApiName = (s) => (s || '').toLowerCase().trim().replace(/\s+/g, '-');
+                    const sprite = bestTeamSprites[toApiName(name)] || p?.sprites?.other?.['official-artwork']?.front_default || p?.sprites?.front_default || null;
+                    const ability = typeof p?.ability === 'string' ? p.ability : (p?.ability?.ability || p?.ability?.name || null);
+                    const item = typeof p?.item === 'string' ? p.item : (p?.item?.item || p?.item?.name || null);
+                    const moves = (Array.isArray(p?.moves) ? p.moves : [])
+                      .map(m => (typeof m === 'string' ? m : (m?.move || m?.name || null)))
+                      .filter(Boolean);
+
+                    return (
+                      <div key={idx} style={{
+                        background: 'var(--color-pk-surface)',
+                        border: '1px solid var(--color-pk-border)',
+                        borderRadius: 12,
+                        padding: '14px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'border-color 0.15s',
+                      }}>
+                        {/* Sprite */}
+                        <div style={{ width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-pk-card)', borderRadius: 10 }}>
+                          {sprite
+                            ? <img src={sprite} alt={name} style={{ width: 64, height: 64, objectFit: 'contain' }} />
+                            : <span style={{ fontSize: 28, fontFamily: 'var(--font-heading)', fontWeight: 900, color: 'var(--color-pk-muted)', textTransform: 'uppercase' }}>{name.charAt(0)}</span>
+                          }
+                        </div>
+
+                        {/* Name */}
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13, textAlign: 'center', color: 'var(--color-pk-text)', textTransform: 'capitalize' }}>
+                          {fmtName(name)}
+                        </div>
+
+                        {/* Ability & Item badges */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+                          {ability && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 6, padding: '3px 7px' }}>
+                              <span style={{ fontSize: 9, fontFamily: 'var(--font-heading)', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.06em', textTransform: 'uppercase' }}>HAB</span>
+                              <span style={{ fontSize: 11, color: 'var(--color-pk-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ability}</span>
+                            </div>
+                          )}
+                          {item && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: 6, padding: '3px 7px' }}>
+                              <span style={{ fontSize: 9, fontFamily: 'var(--font-heading)', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em', textTransform: 'uppercase' }}>OBJ</span>
+                              <span style={{ fontSize: 11, color: 'var(--color-pk-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Move chips */}
+                        {moves.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
+                            {moves.map((mv, mi) => (
+                              <span key={mi} style={{
+                                background: 'rgba(220,38,38,0.08)',
+                                border: '1px solid rgba(220,38,38,0.18)',
+                                color: 'var(--color-pk-text)',
+                                borderRadius: 5,
+                                padding: '2px 6px',
+                                fontSize: 10,
+                                fontFamily: 'var(--font-heading)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                maxWidth: '100%',
+                                textOverflow: 'ellipsis',
+                              }}>{mv}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <style>{`
         @keyframes spin {

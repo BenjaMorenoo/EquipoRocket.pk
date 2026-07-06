@@ -26,42 +26,42 @@ def score_pokemon(poke):
     hp = float(stats.get("hp", 70))
     atk = float(stats.get("atk", 70))
     spa = float(stats.get("spa", 70))
-    # base stat contribution
     stat_score = 0.6 * max(atk, spa) + 0.4 * hp
 
-    # moves: usar la 'percent' como proxy de utilidad; cada move aporta según tipo
+    # Flat contribution per selected move — avoids systematic bias where the
+    # "default" config (top-4 by percent) always outscores randomly-sampled configs.
     moves = poke.get("moves", [])
-    move_score = 0.0
-    for mv in moves:
-        try:
-            p = float(mv.get("percent", 0))
-        except Exception:
-            p = 0.0
-        move_score += p
-    # normalize
-    move_score = move_score / (len(moves) or 1)
+    move_score = min(len(moves), 4) * 10.0
 
-    # item multiplier: items with high percent -> small bonus
-    items = poke.get("items", [])
-    top_item = _most_common_field(items, "item")
+    # item multiplier: use the SELECTED item (singular key set by generate_random_config),
+    # not the full pool list — so different item choices actually produce different scores.
     item_mult = 1.0
-    if top_item:
-        # items like Choice Scarf / Sash etc. may change role; give modest bonus
-        item_mult += min(0.25, float(top_item.get("percent", 0)) / 400.0)
+    selected_item = poke.get("item")
+    if isinstance(selected_item, dict):
+        item_mult += min(0.25, float(selected_item.get("percent", 0)) / 400.0)
+    elif not selected_item:
+        items = poke.get("items", [])
+        top_item = _most_common_field(items, "item")
+        if top_item:
+            item_mult += min(0.25, float(top_item.get("percent", 0)) / 400.0)
 
-    # spread: prefer spreads with high percent because reflejan inversión en stats
+    # spread bonus from pool (same for all configs of same pokemon — minor factor)
     spreads = poke.get("spreads", [])
     spread_bonus = 0.0
     top_spread = _most_common_field(spreads, "nature")
     if top_spread:
         spread_bonus = min(0.25, float(top_spread.get("percent", 0)) / 400.0)
 
-    # ability: small bonus for popular abilities
-    abilities = poke.get("abilities", [])
-    top_ability = _most_common_field(abilities, "ability")
+    # ability bonus: use the SELECTED ability (singular key), not the full pool list.
     ability_bonus = 0.0
-    if top_ability:
-        ability_bonus = min(0.15, float(top_ability.get("percent", 0)) / 800.0)
+    selected_ability = poke.get("ability")
+    if isinstance(selected_ability, dict):
+        ability_bonus = min(0.15, float(selected_ability.get("percent", 0)) / 800.0)
+    elif not selected_ability:
+        abilities = poke.get("abilities", [])
+        top_ability = _most_common_field(abilities, "ability")
+        if top_ability:
+            ability_bonus = min(0.15, float(top_ability.get("percent", 0)) / 800.0)
 
     base = (stat_score * (1 + spread_bonus) + move_score * 2.5) * item_mult * (1 + ability_bonus)
     return base

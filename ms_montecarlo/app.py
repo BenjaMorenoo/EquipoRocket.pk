@@ -620,7 +620,7 @@ def simulate(req: SimulateRequest):
     simplified_best = [simplify_entry(p) for p in (best_team or [])]
 
     # Return top-level shape: win_rate as percentage and simplified best_team
-    return {"success": True, "simulation_id": sim_id, "win_rate": team_a_prob, "best_team": simplified_best}
+    return {"success": True, "simulation_id": sim_id, "win_rate": team_a_prob, "opponent_win_rate": team_b_prob, "best_team": simplified_best}
 
 
 

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { getBackendPokemons, getBackendPokemon, getPokemon as getPokeApiPokemon, getCollections, addToCollection, removeFromCollection } from '../services/api';
 import TypeBadge from '../components/TypeBadge';
+import { getTypeColor } from '../utils/typeColors';
 
 export default function MisPokemon() {
   const [loading, setLoading] = useState(true);
@@ -109,76 +110,177 @@ export default function MisPokemon() {
     }
   };
 
+  const getTypeName = (t) => typeof t === 'string' ? t : (t?.type?.name || t?.name || '');
+
+  const filtered = pokemons.filter(p => {
+    if (showOnlyMine && !selected.includes(p.id)) return false;
+    if (filterType !== 'all') {
+      if (!(p.types || []).map(getTypeName).includes(filterType)) return false;
+    }
+    if (nameFilter && !p.name.toLowerCase().includes(nameFilter.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '36px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 28, margin: 0 }}>Mis Pokémon</h1>
-          <p style={{ color: 'var(--color-pk-muted)', marginTop: 6 }}>Selecciona los Pokémon que tienes (guardado en el navegador).</p>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 30, margin: 0 }}>Mis Pokémon</h1>
+          <p style={{ color: 'var(--color-pk-muted)', marginTop: 6, fontSize: 14 }}>
+            Tu Pokédex personal. Marca los que tienes en tu colección.
+          </p>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 13, color: 'var(--color-pk-muted)' }}>Seleccionados</div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 18 }}>{selected.length}</div>
+        <div style={{
+          background: 'var(--color-pk-surface)',
+          border: '1px solid var(--color-pk-border)',
+          borderRadius: 12,
+          padding: '10px 20px',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--color-pk-muted)', fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Colección</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 900, fontSize: 24, color: 'var(--color-pk-red)', lineHeight: 1.1 }}>{selected.length}</div>
+          <div style={{ fontSize: 11, color: 'var(--color-pk-muted)' }}>de {pokemons.length}</div>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-pk-muted)' }}>Cargando Pokémon...</div>
+        <div style={{ padding: 60, textAlign: 'center', color: 'var(--color-pk-muted)' }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--color-pk-border)', borderTopColor: 'var(--color-pk-red)', animation: 'spin .8s linear infinite', margin: '0 auto 16px' }} />
+          Cargando Pokédex...
+        </div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <label style={{ fontSize: 13, color: 'var(--color-pk-muted)' }}>Filtrar por tipo:</label>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '6px 10px', background: '#fff', color: '#000', border: '1px solid var(--color-pk-border)', borderRadius: 6 }}>
-                <option value="all">Todos</option>
-                {types.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <label style={{ fontSize: 13, color: 'var(--color-pk-muted)' }}>Buscar:</label>
-              <input value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} placeholder="Nombre..." style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--color-pk-border)', background: '#fff', color: '#000' }} />
-            </div>
-
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="Buscar por nombre..."
+              className="pk-input"
+              style={{ padding: '8px 14px', fontSize: 13, minWidth: 180 }}
+            />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{ padding: '8px 12px', background: 'var(--color-pk-surface)', color: 'var(--color-pk-text)', border: '1px solid var(--color-pk-border)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}
+            >
+              <option value="all">Todos los tipos</option>
+              {types.map(t => <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>)}
+            </select>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowOnlyMine(false)} className={!showOnlyMine ? 'pk-btn pk-btn-primary' : 'pk-btn'}>Todos</button>
-              <button onClick={() => setShowOnlyMine(true)} className={showOnlyMine ? 'pk-btn pk-btn-primary' : 'pk-btn'}>Solo seleccionados</button>
+              <button onClick={() => setShowOnlyMine(false)} className={!showOnlyMine ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'} style={{ fontSize: 13, padding: '8px 14px' }}>
+                Todos ({pokemons.length})
+              </button>
+              <button onClick={() => setShowOnlyMine(true)} className={showOnlyMine ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'} style={{ fontSize: 13, padding: '8px 14px' }}>
+                Mi colección ({selected.length})
+              </button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
-          {pokemons
-            .filter(p => {
-              if (showOnlyMine && !selected.includes(p.id)) return false;
-              if (filterType !== 'all') {
-                const names = (p.types || []).map(t => (typeof t === 'string' ? t : (t.type?.name || t.name)));
-                if (!names.includes(filterType)) return false;
-              }
-              if (nameFilter && !p.name.toLowerCase().includes(nameFilter.toLowerCase())) return false;
-              return true;
-            })
-            .map((p) => (
-            <div key={p.id} className="pk-card" style={{ padding: 12, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {/** sprite from PokeAPI loaded into sprites map */}
-                {p.sprite ? (
-                  <img src={p.sprite} alt={p.name} style={{ width: 64, height: 64, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                ) : (
-                  <div style={{ width: 64, height: 64 }} />
-                )}
-              </div>
-              <div style={{ fontWeight: 700, textTransform: 'capitalize', textAlign: 'center' }}>{p.name}</div>
+          {/* Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 14 }}>
+            {filtered.map((p) => {
+              const inCollection = selected.includes(p.id);
+              const typeNames = (p.types || []).map(getTypeName).filter(Boolean);
+              const primaryType = typeNames[0] || 'normal';
+              const colors = getTypeColor(primaryType);
+              const dexNum = p.pokeapi_id || p.id;
 
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                <button onClick={() => toggleSelect(p.id)} className={selected.includes(p.id) ? 'pk-btn pk-btn-primary' : 'pk-btn pk-btn-secondary'} style={{ padding: '8px 12px', fontSize: 13 }}>
-                  {selected.includes(p.id) ? 'Seleccionado' : 'Seleccionar'}
-                </button>
-              </div>
-            </div>
-          ))}
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => toggleSelect(p.id)}
+                  style={{
+                    position: 'relative',
+                    borderRadius: 14,
+                    border: `2px solid ${inCollection ? colors.bg : 'var(--color-pk-border)'}`,
+                    background: inCollection
+                      ? `linear-gradient(160deg, ${colors.light}, var(--color-pk-surface))`
+                      : 'var(--color-pk-surface)',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    transition: 'transform 0.15s, border-color 0.15s, box-shadow 0.15s',
+                    boxShadow: inCollection ? `0 4px 18px ${colors.border}` : '0 1px 4px rgba(0,0,0,0.06)',
+                    userSelect: 'none',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  {/* Type color strip at top */}
+                  <div style={{ height: 6, background: colors.bg, opacity: inCollection ? 1 : 0.35 }} />
+
+                  {/* Dex number */}
+                  <div style={{
+                    position: 'absolute', top: 12, left: 10,
+                    fontFamily: 'var(--font-heading)', fontWeight: 700,
+                    fontSize: 10, color: inCollection ? colors.bg : 'var(--color-pk-muted)',
+                    letterSpacing: '0.05em',
+                  }}>
+                    #{String(dexNum).padStart(3, '0')}
+                  </div>
+
+                  {/* Checkmark overlay */}
+                  {inCollection && (
+                    <div style={{
+                      position: 'absolute', top: 10, right: 10,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: colors.bg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, color: colors.text, fontWeight: 900,
+                    }}>✓</div>
+                  )}
+
+                  {/* Sprite */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '18px 12px 8px',
+                    background: inCollection ? `radial-gradient(circle at 50% 60%, ${colors.light} 0%, transparent 70%)` : 'transparent',
+                  }}>
+                    {p.sprite ? (
+                      <img
+                        src={p.sprite}
+                        alt={p.name}
+                        style={{ width: 88, height: 88, objectFit: 'contain', filter: inCollection ? 'none' : 'grayscale(40%) opacity(0.7)', transition: 'filter 0.2s' }}
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div style={{ width: 88, height: 88, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, opacity: 0.3 }}>?</div>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div style={{
+                    fontFamily: 'var(--font-heading)', fontWeight: 700,
+                    fontSize: 12, textAlign: 'center',
+                    textTransform: 'capitalize',
+                    color: 'var(--color-pk-text)',
+                    padding: '0 8px 8px',
+                    letterSpacing: '0.03em',
+                  }}>
+                    {p.name.replace(/-/g, ' ')}
+                  </div>
+
+                  {/* Type badges */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 4, padding: '0 8px 12px', flexWrap: 'wrap' }}>
+                    {typeNames.map(t => <TypeBadge key={t} type={t} size="xs" />)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+
+          {filtered.length === 0 && (
+            <div style={{ padding: 60, textAlign: 'center', color: 'var(--color-pk-muted)' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>—</div>
+              No hay Pokémon que coincidan con los filtros.
+            </div>
+          )}
         </>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
