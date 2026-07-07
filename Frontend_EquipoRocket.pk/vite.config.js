@@ -29,6 +29,26 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.js',
+    coverage: {
+      provider: 'v8',
+      reporter: ['html', 'text', 'lcov'],
+      reportsDirectory: './coverage',
+      include: [
+        'src/utils/**',
+        'src/components/TypeBadge.jsx',
+        'src/components/ErrorBoundary.jsx',
+        'src/components/ConfirmModal.jsx',
+        'src/components/Footer.jsx',
+        'src/components/TypeCoverageChart.jsx',
+        'src/components/PokemonSprite.jsx',
+      ],
+      thresholds: {
+        lines: 80,
+        functions: 75,
+        branches: 70,
+        statements: 80,
+      },
+    },
   },
 })
  

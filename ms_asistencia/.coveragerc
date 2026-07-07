@@ -1,0 +1,7 @@
+[run]
+include =
+    app.py
+omit =
+    tests/*
+    .venv/*
+    engine.py
