@@ -62,7 +62,9 @@ export const getPokemonSpecies = async (nameOrId) => {
 
 // ── API Gateway (use gateway for all backend calls in production)
 // Default to host port 9000 because gateway is mapped to host 9000:8000 in docker-compose
-const GATEWAY_URL = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+// ?? (not ||) preserves "" so that an empty VITE_API_URL produces relative paths,
+// which Nginx proxies to ms_gateway. Fallback to localhost:9000 only when fully unset.
+const GATEWAY_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:9000';
 // Increase default timeout to handle longer-running backend requests (e.g. asistencia, montecarlo)
 export const gatewayAPI = axios.create({ baseURL: GATEWAY_URL, timeout: 60000, headers: { 'Content-Type': 'application/json' } });
 

@@ -1023,4 +1023,361 @@ Mejoras y funcionalidades Could Have.
 
 ---
 
+## 9. Diagramas de Casos de Uso
+
+> **Notación UML utilizada:**
+> - Cápsulas `([...])` → actores (usuarios y sistemas externos)
+> - Rectángulos redondeados `(...)` → casos de uso
+> - Nodos en amarillo → pasos internos del sistema (no visibles para el actor)
+> - Nodos en rosa → sistemas externos o microservicios
+> - Flecha sólida `→` → asociación actor–caso de uso
+> - Flecha punteada `<<include>>` → el caso base **siempre** ejecuta el caso incluido
+> - Flecha punteada `<<extend>>` → el caso extensor **opcionalmente** añade comportamiento al base
+
+---
+
+### 9.1 Visión General del Sistema
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,font-weight:bold
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+
+    UA(["Usuario Anónimo"]):::actor
+    UR(["Usuario Registrado"]):::actor
+    ADM(["Administrador"]):::actor
+
+    subgraph AUTH["E1 · Autenticación"]
+        reg("Registrarse"):::uc
+        login("Iniciar sesión"):::uc
+        logout("Cerrar sesión"):::uc
+        editp("Editar perfil"):::uc
+    end
+    subgraph PKDX["E2 · Pokédex"]
+        pkdx("Explorar Pokédex"):::uc
+        gcol("Gestionar colección"):::uc
+    end
+    subgraph TEAM["E3 · Constructor Manual"]
+        cteam("Crear / Editar equipo"):::uc
+        vteam("Ver mis equipos"):::uc
+    end
+    subgraph AIBOX["E4–E6 · IA y Sinergia"]
+        aiteam("Generar equipo con IA"):::uc
+        synergy("Analizar sinergia"):::uc
+    end
+    subgraph SIMU["E5 · Simulación"]
+        sim("Simular combate"):::uc
+        histsim("Ver historial"):::uc
+    end
+    subgraph ADMINBOX["E7–E8 · Admin y Datos"]
+        dashboard("Panel de administración"):::uc
+        loaddata("Cargar datos externos"):::uc
+    end
+
+    UA --> reg
+    UA --> login
+    UA --> pkdx
+
+    UR --> login
+    UR --> logout
+    UR --> editp
+    UR --> pkdx
+    UR --> gcol
+    UR --> cteam
+    UR --> vteam
+    UR --> aiteam
+    UR --> synergy
+    UR --> sim
+    UR --> histsim
+
+    ADM --> login
+    ADM --> dashboard
+    ADM --> loaddata
+```
+
+---
+
+### 9.2 E1 — Autenticación y Perfil
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+
+    UA(["Usuario Anónimo"]):::actor
+    UR(["Usuario Registrado"]):::actor
+
+    subgraph E1["E1 · Autenticación y Perfil"]
+        reg("HU-01 · Registrarse"):::uc
+        login("HU-02 · Iniciar sesión"):::uc
+        logout("HU-03 · Cerrar sesión"):::uc
+        editp("HU-04 · Editar perfil"):::uc
+        recpw("HU-05 · Recuperar contraseña"):::uc
+        valcred("Validar credenciales JWT"):::sys
+        hashpw("Hashear contraseña bcrypt"):::sys
+        sendemail("Enviar e-mail de recuperación"):::sys
+    end
+
+    UA --> reg
+    UA --> login
+    UR --> login
+    UR --> logout
+    UR --> editp
+    UR --> recpw
+
+    login -.->|"<<include>>"| valcred
+    reg -.->|"<<include>>"| hashpw
+    recpw -.->|"<<include>>"| sendemail
+    recpw -.->|"<<extend>>"| login
+```
+
+---
+
+### 9.3 E2 — Pokédex y Colección Personal
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+
+    UA(["Usuario Anónimo"]):::actor
+    UR(["Usuario Registrado"]):::actor
+
+    subgraph E2["E2 · Pokédex y Colección"]
+        pkdx("HU-06 · Explorar Pokédex"):::uc
+        search("Buscar Pokémon por nombre"):::uc
+        addcol("HU-07 · Agregar a colección"):::uc
+        viewcol("HU-08 · Ver mi colección"):::uc
+        rmcol("Eliminar de colección"):::uc
+        authck("Verificar autenticación"):::sys
+    end
+
+    UA --> pkdx
+    UR --> pkdx
+    UR --> addcol
+    UR --> viewcol
+
+    pkdx -.->|"<<include>>"| search
+    addcol -.->|"<<include>>"| authck
+    viewcol -.->|"<<include>>"| authck
+    rmcol -.->|"<<extend>>"| viewcol
+```
+
+---
+
+### 9.4 E3 — Constructor Manual de Equipos
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+
+    UR(["Usuario Registrado"]):::actor
+
+    subgraph E3["E3 · Constructor Manual de Equipos"]
+        cteam("HU-09 · Crear equipo"):::uc
+        eteam("HU-10 · Editar equipo"):::uc
+        dteam("HU-11 · Eliminar equipo"):::uc
+        vteam("HU-12 · Ver mis equipos"):::uc
+        evs("HU-13 · Asignar EVs y naturaleza"):::uc
+        coverage("HU-14 · Ver cobertura de tipos"):::uc
+        feedback("HU-15 · Dejar feedback"):::uc
+        softdel("Soft-delete · active=FALSE"):::sys
+        authck2("Verificar autenticación"):::sys
+    end
+
+    UR --> cteam
+    UR --> eteam
+    UR --> dteam
+    UR --> vteam
+    UR --> feedback
+
+    cteam -.->|"<<include>>"| authck2
+    eteam -.->|"<<include>>"| authck2
+    dteam -.->|"<<include>>"| softdel
+    evs -.->|"<<extend>>"| cteam
+    evs -.->|"<<extend>>"| eteam
+    coverage -.->|"<<extend>>"| cteam
+    feedback -.->|"<<extend>>"| vteam
+```
+
+---
+
+### 9.5 E4 — Constructor Asistido por IA
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+    classDef ext fill:#fce7f3,stroke:#be185d,stroke-width:1px
+
+    UR(["Usuario Registrado"]):::actor
+    ASSIST(["ms_asistencia"]):::ext
+
+    subgraph E4["E4 · Constructor Asistido por IA"]
+        aiteam("HU-16 · Generar equipo con IA"):::uc
+        seed("HU-17 · Seleccionar Pokémon semilla"):::uc
+        filtcol("HU-18 · Filtrar por colección"):::uc
+        filttype("HU-19 · Filtrar por tipo"):::uc
+        calcsin("Calcular matriz de sinergia"):::sys
+        loadmeta("Obtener datos meta competitiva"):::sys
+    end
+
+    UR --> aiteam
+    ASSIST --> calcsin
+
+    aiteam -.->|"<<include>>"| calcsin
+    calcsin -.->|"<<include>>"| loadmeta
+    seed -.->|"<<extend>>"| aiteam
+    filtcol -.->|"<<extend>>"| aiteam
+    filttype -.->|"<<extend>>"| aiteam
+```
+
+---
+
+### 9.6 E5 — Simulación Monte Carlo
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+    classDef ext fill:#fce7f3,stroke:#be185d,stroke-width:1px
+
+    UR(["Usuario Registrado"]):::actor
+    MC(["ms_montecarlo"]):::ext
+
+    subgraph E5["E5 · Simulación Monte Carlo"]
+        sim("HU-20 · Simular combate"):::uc
+        optcfg("HU-21 · Ver configuraciones optimizadas"):::uc
+        histsim("HU-23 · Ver historial de simulaciones"):::uc
+        replay("HU-22 · Reproducir simulación previa"):::uc
+        calprob("Calcular probabilidades MC\n2×iterations×sims batallas"):::sys
+        savehist("Registrar resultado en BD"):::sys
+    end
+
+    UR --> sim
+    UR --> histsim
+    MC --> calprob
+
+    sim -.->|"<<include>>"| calprob
+    sim -.->|"<<include>>"| savehist
+    optcfg -.->|"<<extend>>"| sim
+    replay -.->|"<<extend>>"| sim
+    histsim -.->|"<<include>>"| savehist
+```
+
+---
+
+### 9.7 E6 — Análisis de Sinergia
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+    classDef ext fill:#fce7f3,stroke:#be185d,stroke-width:1px
+
+    UR(["Usuario Registrado"]):::actor
+    ASSIST2(["ms_asistencia"]):::ext
+
+    subgraph E6["E6 · Análisis de Sinergia"]
+        syn("HU-24 · Analizar sinergia del equipo"):::uc
+        recom("HU-25 · Recibir recomendación de compañero"):::uc
+        build("HU-26 · Recibir recomendación de build"):::uc
+        loadext("Cargar datos external_raw"):::sys
+        pairmat("Calcular pares de sinergia"):::sys
+    end
+
+    UR --> syn
+    UR --> recom
+    UR --> build
+    ASSIST2 --> pairmat
+
+    syn -.->|"<<include>>"| pairmat
+    recom -.->|"<<include>>"| syn
+    build -.->|"<<include>>"| pairmat
+    pairmat -.->|"<<include>>"| loadext
+```
+
+---
+
+### 9.8 E7 — Panel de Administración
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+
+    ADM(["Administrador"]):::actor
+
+    subgraph E7["E7 · Panel de Administración"]
+        dashboard("HU-27 · Ver dashboard general"):::uc
+        musers("HU-28 · Gestionar usuarios"):::uc
+        cadmin("HU-29 · Crear cuenta administrador"):::uc
+        analu("HU-30 · Analítica de usuarios"):::uc
+        analp("HU-31 · Analítica de Pokémon"):::uc
+        anals("HU-32 · Analítica de simulaciones"):::uc
+        teams_adm("HU-34 · Ver todos los equipos"):::uc
+        preview("HU-33 · Vista previa como usuario"):::uc
+        verifypw("Verificar contraseña admin"):::sys
+        loadmv("Cargar métricas y vistas materializadas"):::sys
+    end
+
+    ADM --> dashboard
+    ADM --> musers
+    ADM --> cadmin
+    ADM --> analu
+    ADM --> analp
+    ADM --> anals
+    ADM --> teams_adm
+    ADM --> preview
+
+    dashboard -.->|"<<include>>"| loadmv
+    analu -.->|"<<include>>"| loadmv
+    analp -.->|"<<include>>"| loadmv
+    anals -.->|"<<include>>"| loadmv
+    musers -.->|"<<include>>"| verifypw
+    cadmin -.->|"<<extend>>"| musers
+```
+
+---
+
+### 9.9 E8 — Carga de Datos Externos
+
+```mermaid
+graph LR
+    classDef actor fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef uc fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+    classDef sys fill:#fef9c3,stroke:#b45309,stroke-width:1px,font-style:italic
+    classDef ext fill:#fce7f3,stroke:#be185d,stroke-width:1px
+
+    ADM2(["Administrador"]):::actor
+    PIKA(["Pikalytics API\n(sistema externo)"]):::ext
+
+    subgraph E8["E8 · Carga de Datos Externos"]
+        load("HU-35 · Disparar carga de datos"):::uc
+        status("HU-36 · Ver estado del último load"):::uc
+        fetch("GET datos Pikalytics JSON"):::sys
+        store("Almacenar payload en external_raw"):::sys
+        norm("Normalizar en tablas relacionales\npokemon · types · moves · items · spreads"):::sys
+    end
+
+    ADM2 --> load
+    ADM2 --> status
+    PIKA --> fetch
+
+    load -.->|"<<include>>"| fetch
+    load -.->|"<<include>>"| store
+    store -.->|"<<include>>"| norm
+    status -.->|"<<extend>>"| load
+```
+
+---
+
 *Documento generado para el proyecto EquipoRocket.pk — Julio 2026*

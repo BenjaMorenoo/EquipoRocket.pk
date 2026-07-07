@@ -6,7 +6,7 @@ services:
     image: benjamorenoo/frontend:latest
     container_name: frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     networks:
       - equiporocket-net
     restart: unless-stopped
