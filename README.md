@@ -6,32 +6,37 @@ Permite a los usuarios armar equipos, consultar la Pokédex, simular combates co
 
 ## Arquitectura
 
-El proyecto está organizado como un conjunto de **microservicios independientes**, cada uno con su propio `Dockerfile`, `docker-compose.yml` y dependencias. No existe actualmente un API Gateway central en uso: el **frontend actúa como orquestador**, llamando a cada microservicio directamente a través de su URL base (`VITE_MS_*_URL`). El servicio `ms_gateway` existe en el repositorio como proxy reverso opcional, pero no es parte del flujo implementado por defecto.
+El proyecto está organizado como un conjunto de **microservicios independientes**, cada uno con su propio `Dockerfile`, `docker-compose.yml` y dependencias. El frontend se comunica exclusivamente con el **API Gateway** (`ms_gateway`), que enruta cada petición al microservicio correspondiente.
 
 ```mermaid
 flowchart TB
     subgraph Cliente
-        FE["Frontend SPA<br/>React + Vite"]
+        FE["Frontend SPA\nReact + Vite\n:3000"]
+    end
+
+    subgraph Gateway
+        GW["ms_gateway\nNode/Express\n:9000"]
     end
 
     subgraph Microservicios
-        AUTH["ms_auth (Node/Express)<br/>login, registro, JWT"]
-        USU["ms_usuarios (Node/Express)<br/>equipos, perfil, analítica admin"]
-        POKE["ms_pokemon (Node/Express)<br/>Pokédex de solo lectura"]
-        CARGA["ms_carga_api (FastAPI)<br/>ingesta de datos externos"]
-        MC["ms_montecarlo (FastAPI)<br/>simulación Monte Carlo"]
-        ASIS["ms_asistencia (FastAPI + pandas)<br/>recomendaciones / sinergia"]
+        AUTH["ms_auth\nNode/Express :3001\nlogin, registro, JWT"]
+        USU["ms_usuarios\nNode/Express :3003\nequipos, perfil, analítica admin"]
+        POKE["ms_pokemon\nNode/Express :3002\nPokédex de solo lectura"]
+        CARGA["ms_carga_api\nFastAPI :8000\ningesta de datos externos"]
+        MC["ms_montecarlo\nFastAPI :8010\nsimulación Monte Carlo"]
+        ASIS["ms_asistencia\nFastAPI + pandas :8005\nrecomendaciones / sinergia"]
     end
 
-    DB[("PostgreSQL equiporocketDb<br/>(ms_db)")]
-    EXT[("API externa<br/>Pikalytics")]
+    DB[("PostgreSQL\nequiporocketDb\n:5432")]
+    EXT[("API externa\nPikalytics")]
 
-    FE -->|"HTTP REST + JWT"| AUTH
-    FE -->|"HTTP REST + JWT"| USU
-    FE -->|"HTTP REST"| POKE
-    FE -->|"HTTP REST"| MC
-    FE -->|"HTTP REST"| ASIS
-    FE -->|"HTTP REST"| CARGA
+    FE -->|"HTTP REST + JWT"| GW
+    GW --> AUTH
+    GW --> USU
+    GW --> POKE
+    GW --> MC
+    GW --> ASIS
+    GW --> CARGA
 
     AUTH --> DB
     USU --> DB
@@ -41,159 +46,103 @@ flowchart TB
     ASIS --> DB
 
     CARGA -->|"fetch JSON"| EXT
-    CARGA -->|"guarda payload crudo en external_raw"| DB
-    MC -->|"lee external_raw para construir el pool"| DB
-    ASIS -->|"lee external_raw para la matriz de sinergia"| DB
 ```
 
 Todos los servicios se comunican vía HTTP/REST sobre una red Docker compartida (`equiporocket-net`), usando una única base PostgreSQL (`equiporocketDb`) como almacén central.
 
-Documentación de arquitectura más detallada (patrones de diseño, capas, modelo de datos): [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
-
 ## Componentes del repositorio
 
-| Componente | Stack | Puerto por defecto | Responsabilidad |
+| Componente | Stack | Puerto (host) | Responsabilidad |
 |---|---|---|---|
-| [`Frontend_EquipoRocket.pk`](Frontend_EquipoRocket.pk) | React 19 + Vite | 5173 | SPA: login/registro, Team Builder, Pokédex, simulaciones, asistente IA, panel admin |
-| [`ms_auth`](ms_auth) | Node/Express | 3001 | Registro y login de usuarios, emisión de JWT |
-| [`ms_usuarios`](ms_usuarios) | Node/Express | 3003 | CRUD de equipos, perfil de usuario, analítica admin (patrón Repositorio) |
+| [`Frontend_EquipoRocket.pk`](Frontend_EquipoRocket.pk) | React 19 + Vite + Nginx | 3000 | SPA: login/registro, Team Builder, Pokédex, simulaciones, asistente IA, panel admin |
+| [`ms_gateway`](ms_gateway) | Node/Express | 9000 | API Gateway central: enruta `/api/*` del frontend a cada microservicio |
+| [`ms_auth`](ms_auth) | Node/Express | 3001 | Registro y login de usuarios, emisión de JWT, gestión de usuarios (admin) |
+| [`ms_usuarios`](ms_usuarios) | Node/Express | 3003 | CRUD de equipos, perfil de usuario, analítica admin |
 | [`ms_pokemon`](ms_pokemon) | Node/Express | 3002 | Pokédex de solo lectura desde la BD |
 | [`ms_db`](ms_db) | Node/Express + PostgreSQL | 4002 | Inicializa la BD `equiporocketDb` y aplica `schema.sql` |
-| [`ms_carga_api`](ms_carga_api) | FastAPI (Python) | 8000 | Ingiere datos externos (Pikalytics), guarda crudo en `external_raw` y normaliza a tablas (`pokemon`, `types`, `moves`, etc.) |
+| [`ms_carga_api`](ms_carga_api) | FastAPI (Python) | 8000 | Ingiere datos externos (Pikalytics), guarda crudo en `external_raw` y normaliza a tablas |
 | [`ms_montecarlo`](ms_montecarlo) | FastAPI (Python) | 8010 | Simulación Monte Carlo de combates para optimizar configuraciones de equipo |
 | [`ms_asistencia`](ms_asistencia) | FastAPI + pandas (Python) | 8005 | Recomendaciones de compañeros/builds vía matriz de sinergia por pares |
-| [`ms_gateway`](ms_gateway) | Node/Express | 8000 | Proxy reverso opcional hacia todos los microservicios (no usado por el frontend actualmente) |
 
 ## Flujos principales
 
-1. **Autenticación**: el frontend llama a `ms_auth` (`POST /api/auth/register`, `POST /api/auth/login`), que emite un JWT firmado con `JWT_SECRET`. Ese mismo secreto es validado por el middleware `requireAuth` de `ms_usuarios`.
-2. **Gestión de equipos**: el frontend llama directamente a `ms_usuarios` (`/api/teams`, CRUD de equipos) y a `ms_pokemon` (Pokédex), usando el JWT emitido por `ms_auth`.
-3. **Ingesta de datos externos**: `ms_carga_api` consulta la API externa (Pikalytics, vía `API_URL`), guarda el payload crudo en `external_raw.payload` (JSONB) y normaliza entradas hacia `pokemon`, `types`, `abilities`, `items`, `moves`, `spreads`, etc.
-4. **Simulación Monte Carlo**: el frontend llama directamente a `ms_montecarlo` (`POST /simulate`). El servicio carga el "pool" de Pokémon desde la fila más reciente de `external_raw`, ejecuta la búsqueda Monte Carlo y persiste resultados en `battle_simulations`, `simulation_iterations`, `optimized_configurations` y `configuration_comparisons`.
-5. **Asistencia / sinergia**: el frontend llama directamente a `ms_asistencia` (`/analyze/team`, `/recommend/teammate`, `/recommend/build`, `/store/synergy`). Este servicio lee `external_raw` y construye en memoria una matriz de sinergia, persistiendo sinergias por pares en `synergy_data`.
-
-> `ms_montecarlo` y `ms_asistencia` son independientes entre sí (no se llaman uno a otro); cada uno lee `external_raw` directamente desde `ms_db`. Es el **frontend** quien orquesta las llamadas a cada microservicio según la pantalla (Team Builder, Simulación, Asistente IA, etc.).
+1. **Autenticación**: el frontend llama al gateway (`POST /api/auth/register`, `POST /api/auth/login`), que lo redirige a `ms_auth`. Este emite un JWT firmado con `JWT_SECRET`. Ese mismo secreto es validado por el middleware `requireAuth` de `ms_usuarios`.
+2. **Gestión de equipos**: el frontend llama al gateway (`/api/teams`, CRUD de equipos) y a `/api/pokemon` (Pokédex), usando el JWT emitido por `ms_auth`.
+3. **Ingesta de datos externos**: `ms_carga_api` consulta la API externa (Pikalytics), guarda el payload crudo en `external_raw.payload` (JSONB) y normaliza entradas hacia `pokemon`, `types`, `abilities`, `items`, `moves`, `spreads`, etc.
+4. **Simulación Monte Carlo**: el frontend llama al gateway (`POST /api/montecarlo/simulate`). El servicio carga el "pool" desde la fila más reciente de `external_raw`, ejecuta la búsqueda Monte Carlo y persiste resultados en `battle_simulations`.
+5. **Asistencia / sinergia**: el frontend llama al gateway (`/api/asistencia/analyze/team`, `/recommend/teammate`, etc.). Este servicio lee `external_raw` y construye en memoria una matriz de sinergia.
 
 ## Modelo de datos
 
-El esquema relacional físico vive en [`ms_db/schema.sql`](ms_db/schema.sql) y se aplica vía `POST /init` en `ms_db`. Tablas principales:
+El esquema relacional físico vive en [`ms_db/schema.sql`](ms_db/schema.sql). Tablas principales:
 
-- **Catálogo Pokémon**: `pokemon`, `types`, `pokemon_types`, `abilities`, `pokemon_abilities`, `items`, `moves`, `pokemon_moves`, `natures`, `spreads`, `pokemon_spreads`.
-- **Usuarios y equipos**: `users`, `regions`, `countries`, `formats`, `teams`, `team_pokemon` (configuración completa de cada Pokémon dentro de un equipo: habilidad, item, spread, movimientos), `team_pokemon_moves`, `team_feedback`, `user_collections`.
+- **Catálogo Pokémon**: `pokemon`, `types`, `pokemon_types`, `abilities`, `items`, `moves`, `natures`, `spreads`.
+- **Usuarios y equipos**: `users`, `regions`, `countries`, `formats`, `teams`, `team_pokemon`, `team_pokemon_moves`, `team_feedback`, `user_collections`.
 - **Datos externos**: `external_raw` (payload crudo JSONB importado por `ms_carga_api`).
 - **Sinergia**: `synergy_data` (sinergia por pares, alimentada por `ms_asistencia`).
-- **Simulaciones**: `battle_simulations`, `simulation_iterations`, `optimized_configurations`, `configuration_comparisons` (trazabilidad completa de cada corrida Monte Carlo).
+- **Simulaciones**: `battle_simulations`, `simulation_iterations`, `optimized_configurations`, `configuration_comparisons`.
 
 ## Integridad de datos y borrado
 
-### Borrados físicos desde la plataforma
+### Soft-delete de equipos
 
-La plataforma solo ejecuta tres `DELETE` físicos, todos sobre tablas hoja sin riesgo de FKs colgantes:
-
-| Operación | Tabla afectada | Contexto |
-|---|---|---|
-| Usuario quita Pokémon de su colección | `user_collections` | Nadie referencia esta tabla |
-| Editar Pokémon de un equipo | `team_pokemon_moves` → `team_pokemon` | Dentro de una transacción; se reemplazan los registros de inmediato |
-| `ms_montecarlo` persiste configuración | `team_pokemon_moves` | Limpia movimientos antes de re-insertar |
-
-El **borrado de equipos es siempre un soft-delete** (`UPDATE teams SET active = FALSE`). El trigger `trg_prevent_delete_teams` bloquea cualquier `DELETE` físico directo sobre `teams`, tanto desde la app como desde psql.
-
-Los **usuarios nunca se eliminan físicamente** a través de la aplicación — solo se desactivan (`is_active = FALSE`).
-
-### Cascadas que ocurren internamente
-
-Al editar los Pokémon de un equipo (`replaceTeamPokemons` en `teamModel.js`), el DELETE sobre `team_pokemon` dispara cascadas hacia:
-- `team_pokemon_moves` (ON DELETE CASCADE) — correcto
-- `optimized_configurations` (ON DELETE CASCADE) — las configuraciones optimizadas de simulaciones anteriores se eliminan al editar el equipo
-- `configuration_comparisons` (ON DELETE CASCADE) — igual
-
-Al eliminar físicamente una `battle_simulation` (no ocurre desde la app, pero si se hiciera por consola):
-- `simulation_iterations`, `optimized_configurations` y `configuration_comparisons` se eliminan en cascada.
-
-### FKs sin CASCADE — protección por RESTRICT
-
-Las FKs hacia tablas de referencia (`pokemon`, `abilities`, `items`, `moves`, `types`, `formats`) no tienen `ON DELETE` declarado, por lo que Postgres aplica **RESTRICT** por defecto: lanza un error antes de dejar una referencia colgante. No hay riesgo de corrupción silenciosa; sí puede impedir operaciones de mantenimiento directo en la DB.
+El borrado de equipos es siempre un soft-delete (`UPDATE teams SET active = FALSE`). El trigger `trg_prevent_delete_teams` bloquea cualquier `DELETE` físico directo sobre `teams`.
 
 ### Supresión de usuarios (Ley N° 21.719)
 
-El esquema anterior tenía un **deadlock**: `teams.user_id NOT NULL` + FK sin acción + trigger anti-DELETE en `teams` hacía imposible eliminar físicamente a un usuario que tuviese equipos, bloqueando el cumplimiento del derecho de supresión de datos personales.
+Los administradores pueden **eliminar físicamente** a cualquier usuario desde el panel de administración. Al hacerlo, los datos personales del usuario son eliminados permanentemente y las FKs relacionadas quedan en NULL, preservando los datos analíticos:
 
-El schema fue corregido para permitir la supresión física de usuarios preservando los datos analíticos:
+| Tabla | Comportamiento al eliminar usuario |
+|---|---|
+| `teams` | `user_id` → NULL (equipos quedan anónimos) |
+| `team_feedback` | `user_id` → NULL |
+| `battle_simulations` | FKs de usuario → NULL |
 
-| Tabla | FK modificada | Comportamiento |
-|---|---|---|
-| `teams` | `fk_teams_user` → `ON DELETE SET NULL` | Los equipos quedan en la BD sin dueño (analítica intacta) |
-| `team_feedback` | `fk_tf_user` → `ON DELETE SET NULL` | El historial de feedback queda sin usuario asociado |
-| `battle_simulations` | `fk_bs_user`, `fk_bs_team_a/b`, `fk_bs_winner_team` → `ON DELETE SET NULL` | Los resultados de simulaciones quedan en la BD con referencias en NULL |
+La operación requiere que el administrador confirme con su contraseña y escriba el nombre del usuario. No es posible eliminar al último administrador activo del sistema.
 
-`teams.user_id` también fue cambiado de `NOT NULL` a nullable para permitir el SET NULL.
+## Cómo levantar el proyecto (Docker)
 
-#### Aplicar la migración en una BD existente
+Requiere Docker Desktop con Docker Compose V2. Ver [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) para la guía completa.
 
-El archivo `ms_db/schema.sql` incluye un bloque de `ALTER TABLE` idempotentes al final. Para aplicarlos en una base de datos ya creada, conectarse con psql y ejecutar ese bloque directamente, o correr `POST /init` de `ms_db` si la base aún no existe (aplica todo el schema desde cero).
+**Levantar todo el stack:**
 
-## Cómo levantar el proyecto localmente (Docker)
+```bash
+docker compose up -d
+```
 
-Requiere Docker Desktop con Docker Compose V2.
+Descarga todas las imágenes desde Docker Hub (`benjamorenoo/*`), crea la red interna, levanta la base de datos y arranca todos los microservicios automáticamente.
 
-1. **Crear la red Docker compartida** (una sola vez):
+**Poblar la base de datos** (una vez que los contenedores estén corriendo):
 
-   ```bash
-   # Linux/macOS
-   ./scripts/create_network.sh
-   # Windows PowerShell
-   .\scripts\create_network.ps1
-   ```
+```bash
+docker compose exec ms_db node seed.js
+```
 
-2. **Levantar cada servicio** desde su propia carpeta (orden recomendado: `ms_db` primero para inicializar la base de datos, luego el resto):
-
-   ```bash
-   cd ms_db && cp .env.example .env  # editar credenciales
-   docker compose up -d --build
-   curl -X POST http://localhost:4002/init   # crea la BD y aplica el esquema
-
-   cd ../ms_auth && cp .env.example .env
-   docker compose up -d --build
-
-   cd ../ms_usuarios && docker compose up -d --build
-   cd ../ms_pokemon && cp .env.template .env && docker compose up -d --build
-   cd ../ms_carga_api && cp .env.example .env && docker compose up -d --build
-   cd ../ms_montecarlo && docker compose up -d --build
-   cd ../ms_asistencia && docker compose up -d --build
-
-   cd ../Frontend_EquipoRocket.pk && cp .env.example .env
-   docker compose up -d --build
-   ```
-
-3. **Detener un servicio**: desde su carpeta, `docker compose down`.
-
-Más detalle en [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) y [`DOCKER_DEPLOYMENT_GUIDE.md`](DOCKER_DEPLOYMENT_GUIDE.md). Cada microservicio también documenta cómo correrlo de forma local sin Docker (venv + `uvicorn`, o `npm install` + `node`) en su propio `README.md`.
+La aplicación queda disponible en **http://localhost:3000**.
 
 ## Frontend
 
-SPA en React 19 + Vite, con Tailwind CSS, React Router y Recharts para gráficos. Estructura relevante en `Frontend_EquipoRocket.pk/src`:
+SPA en React 19 + Vite, con Tailwind CSS v4, React Router y Recharts. Estructura relevante en `Frontend_EquipoRocket.pk/src`:
 
-- `pages/`: `AuthPage`, `Login`, `Register`, `Home`, `TeamBuilder`, `MyTeams`, `MisPokemon`, `Simulations`, `UserProfile`, `AdminPanel`.
-- `components/`: piezas reutilizables del Team Builder (`PokemonSlot`, `SearchModal`, `SpreadModal`, `AssistedBuilderModal`, `TypeCoverageChart`, etc.) y widgets de analítica admin (`AdminPerformance`, `AdminSimulationsAnalytics`, `AdminUsageByCountry`, `AdminUsersByMonth`).
+- `pages/`: `AuthPage`, `Home`, `TeamBuilder`, `MyTeams`, `MisPokemon`, `Simulations`, `UserProfile`, `AdminPanel`.
+- `components/`: piezas reutilizables del Team Builder y widgets de analítica admin.
 - `context/AuthContext.jsx`: estado de sesión/JWT compartido en toda la app.
-- `services/api.js`: cliente Axios centralizado que apunta a las URLs base de cada microservicio (`VITE_MS_*_URL`).
+- `services/api.js`: cliente Axios centralizado que apunta al gateway (`VITE_API_URL`).
 
-Comandos (`Frontend_EquipoRocket.pk/package.json`): `npm run dev`, `npm run build`, `npm run lint`, `npm run test` (Vitest + Testing Library).
+Comandos: `npm run dev`, `npm run build`, `npm run lint`, `npm run test`, `npm run test:coverage`.
 
 ## Patrones de diseño aplicados
 
-- **Arquitectura de microservicios**: cada carpeta de nivel superior es un servicio independiente con su propio Dockerfile/compose y dependencias, comunicándose por HTTP/REST sobre `equiporocket-net`.
-- **Separación en capas**:
-  - Servicios Node (`ms_auth`, `ms_usuarios`, `ms_pokemon`, `ms_db`): `routes → controllers → (repository →) model → config/db.js`.
-  - Servicios Python (`ms_montecarlo`, `ms_asistencia`, `ms_carga_api`): `app.py` (endpoints FastAPI) → módulo de dominio (`montecarlo.py`/`simulator.py`, `engine.py`) → `api_client.py` (acceso a datos).
-- **Patrón Repositorio**: `ms_usuarios/src/repositories/teamRepository.js` encapsula el acceso a datos de equipos detrás de una interfaz propia, delegando en `models/teamModel.js`.
+- **Arquitectura de microservicios**: cada carpeta de nivel superior es un servicio independiente comunicándose por HTTP/REST sobre `equiporocket-net`.
+- **API Gateway**: `ms_gateway` centraliza el enrutamiento, reescritura de paths y reenvío del body JSON para todas las peticiones del frontend.
+- **Separación en capas**: servicios Node usan `routes → controllers → (repository →) model → config/db.js`; servicios Python usan `app.py` → módulo de dominio → `api_client.py`.
+- **Patrón Repositorio**: `ms_usuarios/src/repositories/teamRepository.js` encapsula el acceso a datos de equipos.
 
 ## Pruebas
 
-Cada microservicio incluye su propia carpeta `tests/` (Jest para servicios Node, pytest para servicios Python) y el frontend usa Vitest. La matriz de pruebas completa del proyecto y el plan de pruebas están documentados en [`matriz_pruebas.md`](matriz_pruebas.md) y [`plan_pruebas.md`](plan_pruebas.md).
+Cada microservicio incluye su propia carpeta `tests/` (Jest para servicios Node, pytest para servicios Python) y el frontend usa Vitest con `@vitest/coverage-v8`. La matriz y el plan de pruebas están en [`matriz_pruebas.md`](matriz_pruebas.md) y [`plan_pruebas.md`](plan_pruebas.md).
 
 ## Documentación adicional
 
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — diagrama de componentes, flujos detallados y patrones de diseño.
-- [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) / [`DOCKER_DEPLOYMENT_GUIDE.md`](DOCKER_DEPLOYMENT_GUIDE.md) — guías de despliegue con Docker.
+- [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) — guía de despliegue con Docker.
 - READMEs por microservicio (`ms_*/README.md`) — endpoints, variables de entorno y ejecución local de cada servicio.
