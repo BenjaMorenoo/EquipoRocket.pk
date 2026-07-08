@@ -1,46 +1,59 @@
-# Equipo Rocket - Guía de Despliegue de Microservicios
+# Despliegue con Docker
 
-Este proyecto está estructurado utilizando una arquitectura de microservicios. Cada componente cuenta con su propio entorno aislado mediante **Docker**, y todos se comunican de forma interna a través de una red dedicada de Docker.
+## Levantar el proyecto
 
+Desde la raíz del repositorio, ejecuta:
 
-
-## Requisitos Previos
-
-Antes de comenzar, asegúrate de tener instalado en tu sistema:
-* [Docker Desktop](https://www.docker.com/products/docker-desktop) (con soporte para Docker Compose V2).
-* Una terminal (PowerShell, Bash o CMD).
-
-
-
-## Pasos para Arrancar el Proyecto
-
-Para que el ecosistema funcione correctamente, es **estrictamente necesario** seguir el orden de los pasos descritos a continuación.
-
-### Paso 1: Crear la Red Virtual de Docker
-Los microservicios necesitan comunicarse entre sí de forma interna. Para ello, se debe crear primero una red compartida. 
-
-Hemos incluido un script automatizado que se encarga de este proceso. Desde la raíz del proyecto, ejecuta:
-
-* **En Linux/macOS:**
-  ```bash
-  bash ./scripts/create-network.sh
-
-Para comprobar que la red se creó correctamente bajo el nombre configurado, ejecuta el siguiente comando: 
-*```docker network ls
-
-### Paso 2: Levantar los Microservicios y el Frontend
-Cada microservicio y la aplicación del frontend residen en su propia carpeta independiente y contienen su propio archivo docker-compose.yml.
-
-Por cada contenedor que desees iniciar, navega a su respectiva carpeta y ejecuta el comando de encendido:
-
-
-#### 1. Navegar a la carpeta del servicio (Ejemplo con el frontend)
-cd Frontend_EquipoRocket.pk
-
-#### 2. Descargar la imagen y levantar el contenedor en segundo plano
+```bash
 docker compose up -d
+```
 
-Si necesitas detener los servicios, ingresa a la carpeta del servicio que quieras apagar y ejecuta:
+Esto descarga automáticamente todas las imágenes desde Docker Hub (`benjamorenoo/*`), crea la red interna `equiporocket-net`, levanta la base de datos PostgreSQL, aplica el schema de forma idempotente y arranca todos los microservicios.
 
-    
-    bash docker compose down
+No se requiere código fuente ni builds locales.
+
+## Poblar la base de datos
+
+Una vez que los contenedores estén corriendo, ejecuta el seed para cargar los datos iniciales (Pokémon, tipos, movimientos, etc.):
+
+```bash
+docker compose exec ms_db node seed.js
+```
+
+## Servicios y puertos
+
+| Servicio | Descripción | Puerto (host) |
+|---|---|---|
+| Frontend | Aplicación web (Nginx) | http://localhost:3000 |
+| API Gateway | Punto de entrada para el frontend | http://localhost:9000 |
+| ms_auth | Autenticación y usuarios | 3001 |
+| ms_usuarios | Equipos y colecciones | 3003 |
+| ms_pokemon | Pokédex | 3002 |
+| ms_carga_api | Carga de datos desde Pikalytics | 8000 |
+| ms_montecarlo | Simulaciones Monte Carlo | 8010 |
+| ms_asistencia | Recomendaciones con IA | 8005 |
+| ms_db | Bootstrap del schema + API REST | 4002 |
+| PostgreSQL | Base de datos | 5432 |
+
+El único punto de acceso para el usuario es **http://localhost:3000**. El gateway y los microservicios permanecen en la red interna de Docker.
+
+## Detener el proyecto
+
+```bash
+docker compose down
+```
+
+Para eliminar también los datos persistidos:
+
+```bash
+docker compose down -v
+```
+
+## Variables de entorno opcionales
+
+Crea un archivo `.env` junto al `docker-compose.yml` para sobreescribir los valores por defecto:
+
+```env
+POSTGRES_PASSWORD=tupassword
+JWT_SECRET=tusecretojwt
+```
