@@ -1,7 +1,7 @@
 // src/routes/authRoutes.js
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { register, login, me, updateMe, listUsers, setUserActive, verifyPassword } from '../controllers/authController.js';
+import { register, login, me, updateMe, listUsers, setUserActive, verifyPassword, deleteUser } from '../controllers/authController.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 
 const router = Router();
@@ -26,5 +26,6 @@ router.post('/verify-password', verifyPassword);
 // Admin-only
 router.get('/users', requireAdmin, listUsers);
 router.patch('/users/:id/active', requireAdmin, setUserActive);
+router.delete('/users/:id', requireAdmin, deleteUser);
 
 export default router;

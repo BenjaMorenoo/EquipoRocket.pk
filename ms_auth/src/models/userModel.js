@@ -56,3 +56,16 @@ export const updateUserProfile = async (id, { username, email, region_id, countr
   );
   return rows[0] || null;
 };
+
+export const countAdmins = async () => {
+  const { rows } = await query(`SELECT COUNT(*)::int AS count FROM users WHERE is_admin = true`);
+  return rows[0].count;
+};
+
+export const deleteUser = async (id) => {
+  const { rows } = await query(
+    `DELETE FROM users WHERE id = $1 RETURNING id, username, email`,
+    [id]
+  );
+  return rows[0] || null;
+};

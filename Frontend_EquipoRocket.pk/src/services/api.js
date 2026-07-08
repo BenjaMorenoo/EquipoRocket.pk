@@ -88,6 +88,7 @@ export const updateCurrentUser = async (payload) => { const { data } = await gat
 export const verifyCurrentPassword = async (password) => { const { data } = await gatewayAPI.post('/api/auth/verify-password', { password }); return data; };
 export const getUsers = async () => { const { data } = await gatewayAPI.get('/api/usuarios/users'); return data; };
 export const setUserActive = async (id, active, password = undefined) => { const body = { active }; if (typeof password === 'string' && password.length) body.password = password; const { data } = await gatewayAPI.patch(`/api/usuarios/users/${id}/active`, body); return data; };
+export const deleteUserPermanently = async (id, password) => { const { data } = await gatewayAPI.delete(`/api/usuarios/users/${id}`, { data: { password } }); return data; };
 
 // ── Teams (ms_usuarios)
 export const getTeams = async () => { const { data } = await gatewayAPI.get('/api/teams'); return data; };

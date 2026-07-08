@@ -217,6 +217,43 @@ export const updateMe = async (req, res) => {
   }
 };
 
+export const deleteUser = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ success:false, error: 'INVALID_ID' });
+
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ success:false, error: 'PASSWORD_REQUIRED' });
+
+    const adminCaller = req.authUser;
+    const matchAdmin = await bcrypt.compare(password, adminCaller.password_hash || '');
+    if (!matchAdmin) return res.status(401).json({ success:false, error: 'INVALID_PASSWORD' });
+
+    const userModel = await import('../models/userModel.js');
+    const target = await userModel.getUserById(id);
+    if (!target) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+    if (target.is_admin) {
+      const adminCount = await userModel.countAdmins();
+      if (adminCount <= 1) return res.status(409).json({ success:false, error: 'LAST_ADMIN' });
+    }
+
+    const deleted = await userModel.deleteUser(id);
+    if (!deleted) return res.status(404).json({ success:false, error: 'USER_NOT_FOUND' });
+
+    return res.json({
+      success: true,
+      data: {
+        deleted: { id: deleted.id },
+        message: 'Usuario eliminado permanentemente conforme a Ley N° 21.719',
+      },
+    });
+  } catch (e) {
+    console.error('[ms_auth] Error en deleteUser:', e.message);
+    return res.status(500).json({ success:false, error: 'INTERNAL_ERROR' });
+  }
+};
+
 export const verifyPassword = async (req, res) => {
   try {
     const auth = req.headers.authorization || '';

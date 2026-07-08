@@ -4,7 +4,7 @@ import {
   FaCrown, FaExclamationTriangle, FaTimes, FaEye, FaUsers,
   FaCheckCircle, FaTrophy, FaSearch, FaUser, FaEyeSlash,
   FaChartBar, FaGlobeAmericas, FaDragon, FaHome,
-  FaSignOutAlt, FaChartLine, FaBolt,
+  FaSignOutAlt, FaChartLine, FaBolt, FaTrash,
 } from 'react-icons/fa';
 import logo from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +19,7 @@ import AdminPokemonCrossAnalysis from '../components/AdminPokemonCrossAnalysis';
 import AdminTeamsCrossAnalysis   from '../components/AdminTeamsCrossAnalysis';
 import AdminDashboardCharts      from '../components/AdminDashboardCharts';
 import AdminTeamsView            from '../components/AdminTeamsView';
-import { getUsers, setUserActive, registerUser, getAdminTeams } from '../services/api';
+import { getUsers, setUserActive, registerUser, getAdminTeams, deleteUserPermanently } from '../services/api';
 
 /* ── Constants ────────────────────────────────────────────────────────────── */
 const SIDEBAR_W = 260;
@@ -419,7 +419,7 @@ function UsersPagination({ page, total, onChange }) {
   );
 }
 
-function UsersSection({ users, adminUser, onToggle, onOpenCreateAdmin }) {
+function UsersSection({ users, adminUser, onToggle, onDelete, onOpenCreateAdmin }) {
   const [search,     setSearch]     = useState('');
   const [filterReg,  setFilterReg]  = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -525,15 +525,27 @@ function UsersSection({ users, adminUser, onToggle, onOpenCreateAdmin }) {
                   <td style={{ padding: '12px 12px', fontSize: 12, color: 'var(--color-pk-muted)', whiteSpace: 'nowrap' }}>{new Date(u.created_at).toLocaleDateString('es-CL')}</td>
                   <td style={{ padding: '12px 12px' }}>
                     {u.id !== adminUser?.id ? (
-                      <button
-                        onClick={() => onToggle(u)}
-                        aria-label={u.is_active ? `Desactivar a ${u.username}` : `Activar a ${u.username}`}
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, color: '#fca5a5', cursor: 'pointer', padding: '6px 12px', fontSize: 11, fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.05em', transition: 'all .15s', whiteSpace: 'nowrap' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#fca5a5'; }}
-                      >
-                        {u.is_active ? <><FaTimes aria-hidden="true" style={{ marginRight: 6 }} />Desactivar</> : <><FaCheckCircle aria-hidden="true" style={{ marginRight: 6 }} />Activar</>}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button
+                          onClick={() => onToggle(u)}
+                          aria-label={u.is_active ? `Desactivar a ${u.username}` : `Activar a ${u.username}`}
+                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, color: '#fca5a5', cursor: 'pointer', padding: '6px 12px', fontSize: 11, fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '0.05em', transition: 'all .15s', whiteSpace: 'nowrap' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.color = '#ef4444'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#fca5a5'; }}
+                        >
+                          {u.is_active ? <><FaTimes aria-hidden="true" style={{ marginRight: 6 }} />Desactivar</> : <><FaCheckCircle aria-hidden="true" style={{ marginRight: 6 }} />Activar</>}
+                        </button>
+                        <button
+                          onClick={() => onDelete(u)}
+                          aria-label={`Eliminar permanentemente a ${u.username}`}
+                          title="Eliminar permanentemente (Ley N° 21.719)"
+                          style={{ background: 'rgba(127,29,29,0.2)', border: '1px solid rgba(185,28,28,0.3)', borderRadius: 7, color: '#f87171', cursor: 'pointer', padding: '6px 10px', fontSize: 11, transition: 'all .15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(185,28,28,0.35)'; e.currentTarget.style.color = '#ef4444'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(127,29,29,0.2)'; e.currentTarget.style.color = '#f87171'; }}
+                        >
+                          <FaTrash aria-hidden="true" />
+                        </button>
+                      </div>
                     ) : <span style={{ fontSize: 11, color: 'var(--color-pk-muted)' }}>—</span>}
                   </td>
                 </tr>
@@ -673,6 +685,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
   const [teams,           setTeams]           = useState([]);
   const [deleteTarget,    setDeleteTarget]     = useState(null);
   const [toggleAction,    setToggleAction]     = useState('deactivate');
+  const [eraseTarget,     setEraseTarget]      = useState(null);
   const [createAdminOpen, setCreateAdminOpen]  = useState(false);
   const [section,         setSection]          = useState('dashboard');
 
@@ -713,6 +726,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
   }, []);
 
   const handleToggle = (u) => { setDeleteTarget(u); setToggleAction(u.is_active ? 'deactivate' : 'activate'); };
+  const handleDelete = (u) => { setEraseTarget(u); };
 
   const handleConfirmToggle = async (password) => {
     const res     = await setUserActive(deleteTarget.id, toggleAction === 'activate', password);
@@ -723,6 +737,12 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
     } else {
       throw new Error('USER_UPDATE_FAILED');
     }
+  };
+
+  const handleConfirmErase = async (password) => {
+    await deleteUserPermanently(eraseTarget.id, password);
+    setUsers(prev => prev.filter(u => u.id !== eraseTarget.id));
+    setEraseTarget(null);
   };
 
   const handleCreateAdmin = async (data) => {
@@ -748,7 +768,7 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
       {/* ── Content ── */}
       <div style={{ marginLeft: SIDEBAR_W, minHeight: '100vh', padding: '32px 36px 60px', boxSizing: 'border-box' }}>
         {section === 'dashboard'  && <DashboardSection users={users} onSection={setSection} />}
-        {section === 'users'      && <UsersSection users={users} adminUser={adminUser} onToggle={handleToggle} onOpenCreateAdmin={() => setCreateAdminOpen(true)} />}
+        {section === 'users'      && <UsersSection users={users} adminUser={adminUser} onToggle={handleToggle} onDelete={handleDelete} onOpenCreateAdmin={() => setCreateAdminOpen(true)} />}
         {section === 'teams'      && <AdminTeamsView teams={teams} users={users} />}
         {isAnalysis               && <AnalysisSection section={section} users={users} />}
       </div>
@@ -776,6 +796,27 @@ export default function AdminPanel({ onPreviewAsUser, initialSection = null }) {
         <CreateAdminModal
           onClose={() => setCreateAdminOpen(false)}
           onCreate={handleCreateAdmin}
+        />
+      )}
+
+      {eraseTarget && (
+        <ConfirmModal
+          title="Eliminar usuario permanentemente"
+          description={
+            <>
+              <span style={{ display: 'block', marginBottom: 8, color: '#fca5a5', fontWeight: 700 }}>
+                ⚠ Esta acción es irreversible y no puede deshacerse.
+              </span>
+              Se eliminará permanentemente la cuenta de{' '}
+              <strong style={{ color: '#f87171' }}>{eraseTarget.username}</strong> y todos sus datos personales,
+              conforme a la <strong>Ley N° 21.719</strong>. Sus equipos quedarán anónimos.
+            </>
+          }
+          confirmLabel={<><FaTrash aria-hidden="true" style={{ marginRight: 8 }} />Eliminar permanentemente</>}
+          requireTyping={eraseTarget.username}
+          requirePassword
+          onConfirm={handleConfirmErase}
+          onClose={() => setEraseTarget(null)}
         />
       )}
     </>
